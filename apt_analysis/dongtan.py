@@ -1,4 +1,4 @@
-"""화성시 동탄(41590) 실거래 수집 → CSR 지수 (house_pjt 와 동일 방식).
+"""화성시 동탄(41597 동탄구; 구 41590) 실거래 수집 → CSR 지수 (house_pjt 와 동일 방식).
 
 house_pjt 의 pipeline(collect → build → export)을 그대로 재사용한다.
 설정(저장 위치·대상 시군구)만 import 전에 덮어쓰고, 결과는 data/dongtan/ 에 둔다.
@@ -6,7 +6,7 @@ house_pjt 의 pipeline(collect → build → export)을 그대로 재사용한�
   export DATA_GO_KR_KEY=...
   python -m apt_analysis.dongtan --house-pjt <clone 경로> [--from 202001] [--skip-collect]
 
-산출: data/dongtan/gu/41590.json (+ .areas.json) — scorecard 가 자동 포함.
+산출: data/dongtan/gu/41597.json (+ .areas.json) — scorecard 가 자동 포함.
 ※ 키는 '국토교통부 아파트 매매 실거래가 상세 자료' 활용신청이 승인된 키여야 한다.
 ※ 좌표(지오코딩)는 카카오 키가 필요해 건너뛴다 → 동탄 단지는 대략 중심 좌표로 거리 점수 계산.
 """
@@ -20,7 +20,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "data" / "dongtan"
-SGG = "41590"
+SGG = "41597"   # 2026 화성시 행정구 분리: 동탄구 (구 41590)
 
 
 def main(argv=None) -> int:
@@ -42,6 +42,8 @@ def main(argv=None) -> int:
 
     sys.path.insert(0, str(pipe))
     import config as C                                   # noqa: E402  (다른 모듈보다 먼저)
+    # 활용신청한 일반 API(RTMSDataSvcAptTrade). house_pjt 기본값은 상세(Dev) API 라 미승인 시 [30] 오류.
+    C.API_URL = "https://apis.data.go.kr/1613000/RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade"
     C.ALL_GU = {SGG: "화성시"}
     C.SIDO_OF = {SGG: "화성"}
     C.DB_PATH = OUT / "house.db"
@@ -52,6 +54,23 @@ def main(argv=None) -> int:
     import build                                          # noqa: E402
     import collect                                        # noqa: E402
     import export                                         # noqa: E402
+    import fetch                                          # noqa: E402
+    import parse                                          # noqa: E402
+
+    # 일반 API 응답엔 aptSeq(단지 일련번호)가 없다 → '시군구-법정동-단지명' 으로 합성해 주입.
+    # (원시 XML 캐시는 그대로 두고 파싱 직전에만 주입)
+    _orig_parse = parse.parse_items
+
+    def _parse_with_seq(xml_text, src_lawd, src_ymd):
+        import xml.etree.ElementTree as ET
+        root = ET.fromstring(xml_text)
+        for it in root.iterfind(".//item"):
+            if it.find("aptSeq") is None:
+                g = lambda t: (it.findtext(t) or "").strip()  # noqa: E731
+                ET.SubElement(it, "aptSeq").text = f"{g('sggCd') or src_lawd}-{g('umdNm')}-{g('aptNm')}"
+        return _orig_parse(ET.tostring(root, encoding="unicode"), src_lawd, src_ymd)
+
+    parse.parse_items = fetch.parse_items = _parse_with_seq
 
     args = ["--lawd", SGG, "--from", a.ym_from]
     if a.ym_to:

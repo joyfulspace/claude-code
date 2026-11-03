@@ -4,7 +4,7 @@
   python -m apt_analysis.kapt --data-dir <house_pjt>/web/public/data/gu
 
 흐름
-  1) AptListService3/getSigunguAptList3 로 시군구별 단지 목록(kaptCode, 단지명, 법정동)
+  1) AptListService4/getSigunguAptList4 로 시군구별 단지 목록(kaptCode, 단지명, 법정동)
   2) 실거래 단지(CSR)와 시군구+동+정규화 단지명으로 매칭
   3) 사전필터(회복률≥0, 대표평형≥40㎡)를 통과한 단지만
      AptBasisInfoServiceV4/getAphusBassInfoV4 로 기본정보(kaptdaCnt=세대수) 조회
@@ -35,7 +35,7 @@ from .scorecard import DONGTAN_DONGS, DONGTAN_SGG, in_universe
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
-LIST_URL = "https://apis.data.go.kr/1613000/AptListService3/getSigunguAptList3"
+LIST_URL = "https://apis.data.go.kr/1613000/AptListService4/getSigunguAptList4"
 BASIS_URL = "https://apis.data.go.kr/1613000/AptBasisInfoServiceV4/getAphusBassInfoV4"
 
 FIELD_CODE, FIELD_NAME, FIELD_BJD = "kaptCode", "kaptName", "bjdCode"
