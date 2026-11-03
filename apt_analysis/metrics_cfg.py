@@ -10,7 +10,7 @@ RECENT_MONTHS = 12                          # T1 로 끝나는 최근 12개월
 # 확장 스코어카드 필터
 MIN_RECOVERY = 0.0
 MIN_HOUSEHOLDS = 200
-MIN_TURNOVER = 0.005                        # 월평균 거래 ≥ 세대수 × 0.5%
+MIN_TURNOVER = 0.002                        # 월평균 거래 ≥ 세대수 × 0.2% (사용자 지정, 기존 0.5%)
 MIN_REP_AREA = 40.0                         # 대표 평형 전용 ㎡
 
 WEIGHTS = {"loc": 25, "defense": 20, "income": 15, "liquidity": 15,
