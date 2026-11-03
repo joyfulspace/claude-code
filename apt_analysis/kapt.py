@@ -197,7 +197,7 @@ def main(argv=None) -> int:
         return 2
 
     by_sgg: dict[str, list[dict]] = {}
-    rows, unmatched = [], []
+    rows, unmatched, failed, fails = [], [], [], 0
     try:
         for c in cands:
             if c.sgg not in by_sgg:
@@ -207,7 +207,17 @@ def main(argv=None) -> int:
                 unmatched.append(c)
                 continue
             code = e[FIELD_CODE]
-            info = cached(a.cache, f"basis_{code}", lambda: cli.get(BASIS_URL, kaptCode=code)[1])
+            try:
+                info = cached(a.cache, f"basis_{code}", lambda: cli.get(BASIS_URL, kaptCode=code)[1])
+                fails = 0
+            except KaptError as ex:
+                if "한도" in str(ex) or "쿼터" in str(ex):
+                    raise
+                fails += 1                 # 특정 단지만 계속 실패 → 건너뛰고 기록, 연속 5회면 중단
+                failed.append((c.cid, code))
+                if fails >= 5:
+                    raise
+                continue
             it = info[0] if info else {}
             typ = next((it.get(f) for f in FIELD_TYPE if it.get(f)), "")
             rows.append({"cid": c.cid, "kapt_code": code, "kapt_name": e.get(FIELD_NAME),
@@ -227,6 +237,8 @@ def main(argv=None) -> int:
         w = csv.writer(f)
         w.writerow(["cid", "gu", "dong", "name"])
         w.writerows([c.cid, c.gu_name, c.dong, c.name] for c in unmatched)
+    if failed:
+        print(f"기본정보 조회 실패(건너뜀) {len(failed)}건: {failed[:10]}")
     print(f"매칭 {len(rows):,} · 미매칭 {len(unmatched):,} · API 호출 {cli.calls:,}회 → {a.out}")
     return 0
 

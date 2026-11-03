@@ -115,7 +115,7 @@ def compute(complexes: list[Complex], households: dict[str, dict],
         if h:
             r = rows[-1]
             r["kapt_matched"] = True
-            r["households"] = int(h["households"]) if h.get("households") else None
+            r["households"] = int(float(h["households"])) if h.get("households") else None
             r["kapt_type"] = h.get("apt_type", "")
     return rows
 
