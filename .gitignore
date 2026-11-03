@@ -1,0 +1,5 @@
+data/cache/
+data/dongtan/raw/
+data/dongtan/export/
+data/dongtan/house.db*
+__pycache__/
