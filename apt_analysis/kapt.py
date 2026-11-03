@@ -7,7 +7,7 @@
   1) AptListService4/getSigunguAptList4 로 시군구별 단지 목록(kaptCode, 단지명, 법정동)
   2) 실거래 단지(CSR)와 시군구+동+정규화 단지명으로 매칭
   3) 사전필터(회복률≥0, 대표평형≥40㎡)를 통과한 단지만
-     AptBasisInfoServiceV4/getAphusBassInfoV4 로 기본정보(kaptdaCnt=세대수) 조회
+     AptBasisInfoServiceV5/getAphusBassInfoV5 로 기본정보(kaptdaCnt=세대수) 조회
      → 일일 호출 한도(1만) 절약. 응답은 data/cache/kapt 에 캐시해 재개 가능.
 ※ 두 오퍼레이션의 응답 필드명은 키 없이 실측하지 못했다. 파서는 JSON/XML 모두 받고
   필드가 다르면 FIELD_* 상수만 고치면 된다.
@@ -36,7 +36,7 @@ from .scorecard import DONGTAN_DONGS, DONGTAN_SGG, in_universe
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
 LIST_URL = "https://apis.data.go.kr/1613000/AptListService4/getSigunguAptList4"
-BASIS_URL = "https://apis.data.go.kr/1613000/AptBasisInfoServiceV4/getAphusBassInfoV4"
+BASIS_URL = "https://apis.data.go.kr/1613000/AptBasisInfoServiceV5/getAphusBassInfoV5"
 
 FIELD_CODE, FIELD_NAME, FIELD_BJD = "kaptCode", "kaptName", "bjdCode"
 FIELD_DONG = ("as4", "as3")            # 법정동 이름 후보 필드
@@ -62,12 +62,15 @@ def parse_response(text: str) -> tuple[str, int, list[dict]]:
     text = text.strip()
     if text.startswith("{"):
         j = json.loads(text)
+        if "OpenAPI_ServiceResponse" in j:      # 포털 게이트웨이 오류 봉투 (성공 응답이 아님)
+            h = j["OpenAPI_ServiceResponse"].get("cmmMsgHeader", {})
+            return "E" + str(h.get("returnReasonCode", "")), 0, []
         resp = j.get("response", j)
         code = str(resp.get("header", {}).get("resultCode", ""))
         body = resp.get("body", {}) or {}
-        items = body.get("items") or []
-        if isinstance(items, dict):
-            items = items.get("item", [])
+        items = body.get("items") or body.get("item") or []   # V5 기본정보는 body.item 단일 dict
+        if isinstance(items, dict) and "item" in items:
+            items = items["item"]
         if isinstance(items, dict):
             items = [items]
         return code, int(body.get("totalCount") or 0), list(items)
@@ -105,9 +108,10 @@ class Client:
                 code, total, items = parse_response(r.text)
                 if code in ("00", "000", ""):
                     return total, items
-                if code in ("22", "30", "31", "32"):
+                if code in ("22", "E22", "E30", "E31", "E32", "30", "31", "32"):
                     raise KaptError(f"API 오류 resultCode={code} (쿼터/키 문제)")
                 last = f"resultCode={code}"
+                time.sleep(3 * attempt)
             except (requests.RequestException, ET.ParseError, ValueError) as e:
                 last = str(e)
         raise KaptError(f"재시도 실패: {url.rsplit('/', 1)[-1]} {last}")
@@ -118,6 +122,8 @@ def cached(cache: Path, name: str, fn):
     if f.exists():
         return json.loads(f.read_text(encoding="utf-8"))
     v = fn()
+    if not v:                      # 빈 응답(일시 오류 등)은 캐시하지 않는다
+        return v
     cache.mkdir(parents=True, exist_ok=True)
     f.write_text(json.dumps(v, ensure_ascii=False), encoding="utf-8")
     return v
