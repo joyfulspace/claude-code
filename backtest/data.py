@@ -61,3 +61,35 @@ def load(code: str, start: str, end: str, refresh: bool = False) -> pd.DataFrame
         DATA_DIR.mkdir(exist_ok=True)
         df.to_csv(path)
     return df.loc[start:end]
+
+
+def load_series(name: str) -> pd.Series:
+    """지수 종가: data/KOSPI.csv, data/SPX.csv (컬럼: date, close)."""
+    return pd.read_csv(DATA_DIR / f"{name}.csv", index_col=0, parse_dates=True)["close"]
+
+
+def load_valuation() -> pd.DataFrame:
+    """data/valuation.csv: 행=날짜, 열=종목코드, 값=PBR 또는 PER (낮을수록 저평가). 공시 시점 이후 값만 넣을 것."""
+    return pd.read_csv(DATA_DIR / "valuation.csv", index_col=0, parse_dates=True)
+
+
+def synthetic_panel(n_stocks: int = 40, days: int = 2500, seed: int = 1):
+    """파이프라인 점검용: (open, close, kospi, spx, valuation). 실제 성과 아님."""
+    rng = np.random.default_rng(seed)
+    idx = pd.bdate_range("2012-01-01", periods=days)
+    g = rng.normal(0.0003, 0.008, days)           # 글로벌 공통 요인
+    kr = g + rng.normal(0, 0.006, days)
+    us = g + rng.normal(0, 0.006, days)
+    for s in (600, 1300, 2000):                    # 동시 급락 구간 주입
+        kr[s:s + 40] -= 0.004
+        us[s:s + 40] -= 0.004
+    kospi = pd.Series(2000 * np.exp(np.cumsum(kr)), idx)
+    spx = pd.Series(2000 * np.exp(np.cumsum(us)), idx)
+    codes = [f"{i:06d}" for i in range(n_stocks)]
+    beta = rng.uniform(0.7, 1.4, n_stocks)
+    r = kr[:, None] * beta + rng.normal(0, 0.012, (days, n_stocks))
+    close = pd.DataFrame(10000 * np.exp(np.cumsum(r, axis=0)), idx, codes)
+    open_ = close.shift(1).fillna(close.iloc[0]) * (1 + rng.normal(0, 0.003, (days, n_stocks)))
+    val = pd.DataFrame(np.exp(rng.normal(0, 0.5, n_stocks))[None, :] * np.exp(rng.normal(0, 0.05, (days, n_stocks)).cumsum(0) * 0.05),
+                       idx, codes)
+    return open_, close, kospi, spx, val

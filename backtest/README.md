@@ -19,3 +19,9 @@
 - 공공데이터 `clpr` 는 수정주가가 아니라 액면분할/배당 구간에 왜곡이 있을 수 있음
 - 거래세율은 시기별로 다르니 `engine.Costs` 에서 확인·조정
 - 데이터 키: 환경변수 `DATA_GO_KR_KEY`
+
+## 포트폴리오(다종목) 백테스트
+    python3 backtest/run_portfolio.py --synth --split 2018-01-01
+    python3 backtest/run_portfolio.py --codes 005930,000660,... --param thresh=-0.08 --param mode=long_only
+필요 데이터(`data/`): `KOSPI.csv`, `SPX.csv` (date, close), `valuation.csv`(행=날짜, 열=종목코드, 값=PBR/PER; 공시 이후 시점만),
+종목별 `{코드}.csv`. 전략 `strategies/crash_value.py`: 한·미 동시 급락 시 저평가 매수 / 고평가 매도.
