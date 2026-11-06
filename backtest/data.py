@@ -68,9 +68,9 @@ def load_series(name: str) -> pd.Series:
     return pd.read_csv(DATA_DIR / f"{name}.csv", index_col=0, parse_dates=True)["close"]
 
 
-def load_valuation() -> pd.DataFrame:
-    """data/valuation.csv: 행=날짜, 열=종목코드, 값=PBR 또는 PER (낮을수록 저평가). 공시 시점 이후 값만 넣을 것."""
-    return pd.read_csv(DATA_DIR / "valuation.csv", index_col=0, parse_dates=True)
+def load_valuation(kind: str) -> pd.DataFrame:
+    """data/valuation_pbr.csv, valuation_per.csv: 행=날짜, 열=종목코드. 공시 시점 이후 값만 넣을 것."""
+    return pd.read_csv(DATA_DIR / f"valuation_{kind}.csv", index_col=0, parse_dates=True)
 
 
 def synthetic_panel(n_stocks: int = 40, days: int = 2500, seed: int = 1):
@@ -90,6 +90,7 @@ def synthetic_panel(n_stocks: int = 40, days: int = 2500, seed: int = 1):
     r = kr[:, None] * beta + rng.normal(0, 0.012, (days, n_stocks))
     close = pd.DataFrame(10000 * np.exp(np.cumsum(r, axis=0)), idx, codes)
     open_ = close.shift(1).fillna(close.iloc[0]) * (1 + rng.normal(0, 0.003, (days, n_stocks)))
-    val = pd.DataFrame(np.exp(rng.normal(0, 0.5, n_stocks))[None, :] * np.exp(rng.normal(0, 0.05, (days, n_stocks)).cumsum(0) * 0.05),
-                       idx, codes)
-    return open_, close, kospi, spx, val
+    def _val(sd):
+        return pd.DataFrame(np.exp(rng.normal(0, 0.5, n_stocks))[None, :] * np.exp(rng.normal(0, 0.05, (days, n_stocks)).cumsum(0) * 0.05),
+                            idx, codes)
+    return open_, close, kospi, spx, _val(1), _val(2)

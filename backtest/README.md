@@ -22,6 +22,8 @@
 
 ## 포트폴리오(다종목) 백테스트
     python3 backtest/run_portfolio.py --synth --split 2018-01-01
-    python3 backtest/run_portfolio.py --codes 005930,000660,... --param thresh=-0.08 --param mode=long_only
-필요 데이터(`data/`): `KOSPI.csv`, `SPX.csv` (date, close), `valuation.csv`(행=날짜, 열=종목코드, 값=PBR/PER; 공시 이후 시점만),
-종목별 `{코드}.csv`. 전략 `strategies/crash_value.py`: 한·미 동시 급락 시 저평가 매수 / 고평가 매도.
+    python3 backtest/run_portfolio.py --codes 005930,000660,... --split 2022-01-01 --param thresh=-0.05
+필요 데이터(`data/`): `KOSPI.csv`, `SPX.csv` (date, close), `valuation_pbr.csv`, `valuation_per.csv`
+(행=날짜, 열=종목코드; 공시 이후 시점만), 종목별 `{코드}.csv`.
+전략 `strategies/crash_value.py`: 한·미 동시 급락(기본 1개월 -5%) 시 보유 종목 중 고평가 매도 → 저평가 추가 매수 (숏 없음).
+PBR / PER / 조합(순위 평균) 결과를 기준(균등 보유)·KOSPI와 한 표로 비교.
