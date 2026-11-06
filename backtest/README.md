@@ -1,0 +1,21 @@
+# backtest — 국내 주식 규칙 백테스트
+
+## 구조
+- `data.py` 일봉 로더 (CSV 캐시 → 공공데이터포털 API). `--code SYNTH` 는 합성 데이터(점검용)
+- `engine.py` 롱온리, 신호 다음날 시가 체결, 수수료/거래세/슬리피지 반영
+- `metrics.py` 누적수익률, CAGR, 변동성, 샤프, MDD, 거래횟수, Buy&Hold 비교
+- `strategies/` 규칙 1개 = 파일 1개. `signal(df, **params)` 가 1(보유)/0(현금) 시리즈를 반환
+- `run.py` 실행기
+
+## 실행
+    python3 backtest/run.py --strategy ma_cross --code 005930 --start 2020-01-01 --end 2025-12-31 --split 2023-01-01
+    python3 backtest/run.py --strategy ma_cross --code SYNTH --param fast=10 --param slow=40
+
+## 새 규칙 추가
+`strategies/내규칙.py` 에 `PARAMS` 와 `signal(df, ...)` 를 작성. df 컬럼: open/high/low/close/volume.
+신호는 당일 종가까지의 정보만 써야 하며, 체결은 엔진이 다음날 시가로 처리한다.
+
+## 주의
+- 공공데이터 `clpr` 는 수정주가가 아니라 액면분할/배당 구간에 왜곡이 있을 수 있음
+- 거래세율은 시기별로 다르니 `engine.Costs` 에서 확인·조정
+- 데이터 키: 환경변수 `DATA_GO_KR_KEY`
