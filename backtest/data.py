@@ -94,3 +94,27 @@ def synthetic_panel(n_stocks: int = 40, days: int = 2500, seed: int = 1):
         return pd.DataFrame(np.exp(rng.normal(0, 0.5, n_stocks))[None, :] * np.exp(rng.normal(0, 0.05, (days, n_stocks)).cumsum(0) * 0.05),
                             idx, codes)
     return open_, close, kospi, spx, _val(1), _val(2)
+
+
+YAHOO_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{sym}"
+INDEX_SYMBOLS = {"SPX": "^GSPC", "KOSPI": "^KS11"}
+
+
+def fetch_yahoo_index(name: str, start: str = "2000-01-01", end: str | None = None) -> pd.Series:
+    """야후 파이낸스 차트 API로 지수 일봉 종가를 받아 data/{name}.csv 로 저장 (yfinance 불필요)."""
+    import requests
+
+    p1 = int(pd.Timestamp(start, tz="UTC").timestamp())
+    p2 = int(pd.Timestamp(end or pd.Timestamp.now().normalize() + pd.Timedelta(days=1), tz="UTC").timestamp())
+    r = requests.get(YAHOO_URL.format(sym=INDEX_SYMBOLS[name]),
+                     params={"period1": p1, "period2": p2, "interval": "1d"},
+                     headers={"User-Agent": "Mozilla/5.0"}, timeout=30)
+    r.raise_for_status()
+    res = r.json()["chart"]["result"][0]
+    tz = res["meta"].get("exchangeTimezoneName", "UTC")
+    idx = pd.to_datetime(res["timestamp"], unit="s", utc=True).tz_convert(tz).tz_localize(None).normalize()
+    s = pd.Series(res["indicators"]["quote"][0]["close"], index=idx, name="close").dropna()
+    s = s[~s.index.duplicated(keep="last")]
+    DATA_DIR.mkdir(exist_ok=True)
+    s.rename_axis("date").to_csv(DATA_DIR / f"{name}.csv")
+    return s

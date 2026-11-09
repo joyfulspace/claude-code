@@ -27,3 +27,8 @@
 (행=날짜, 열=종목코드; 공시 이후 시점만), 종목별 `{코드}.csv`.
 전략 `strategies/crash_value.py`: 한·미 동시 급락(기본 1개월 -5%) 시 보유 종목 중 고평가 매도 → 저평가 추가 매수 (숏 없음).
 PBR / PER / 조합(순위 평균) 결과를 기준(균등 보유)·KOSPI와 한 표로 비교.
+
+## 지수 데이터 (야후 파이낸스)
+    python3 backtest/fetch_indices.py 2000-01-01
+KOSPI(^KS11)와 S&P500(^GSPC)를 `data/KOSPI.csv`, `data/SPX.csv`로 저장. 네트워크 정책에서 `query1.finance.yahoo.com` 허용 필요.
+야후는 비공식 API라 구조가 바뀌거나 막힐 수 있음.
