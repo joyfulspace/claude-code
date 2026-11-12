@@ -32,3 +32,8 @@ PBR / PER / 조합(순위 평균) 결과를 기준(균등 보유)·KOSPI와 한 
     python3 backtest/fetch_indices.py 2000-01-01
 KOSPI(^KS11)와 S&P500(^GSPC)를 `data/KOSPI.csv`, `data/SPX.csv`로 저장. 네트워크 정책에서 `query1.finance.yahoo.com` 허용 필요.
 야후는 비공식 API라 구조가 바뀌거나 막힐 수 있음.
+
+## KOSPI 전액 매도 알림 (위험 점수)
+    python3 backtest/run_risk_exit.py --hi 85 --lo 60 --days 3
+시장 국면·심리(VIX, RSI)·거래량 지표를 과거 대비 백분위로 점수화(`risk_exit.py`), 점수가 높으면 전액 매도 / 점진 감축을 Buy&Hold와 비교.
+결과: `results/risk_exit.png`(알림 표시 차트), `results/risk_exit_alerts.csv`, `results/risk_exit_signals.csv`. 수급 지표는 미반영.

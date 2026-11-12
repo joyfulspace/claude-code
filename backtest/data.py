@@ -97,7 +97,7 @@ def synthetic_panel(n_stocks: int = 40, days: int = 2500, seed: int = 1):
 
 
 YAHOO_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{sym}"
-INDEX_SYMBOLS = {"SPX": "^GSPC", "KOSPI": "^KS11"}
+INDEX_SYMBOLS = {"SPX": "^GSPC", "KOSPI": "^KS11", "VIX": "^VIX"}
 
 
 def fetch_yahoo_index(name: str, start: str = "2000-01-01", end: str | None = None) -> pd.Series:
@@ -118,3 +118,23 @@ def fetch_yahoo_index(name: str, start: str = "2000-01-01", end: str | None = No
     DATA_DIR.mkdir(exist_ok=True)
     s.rename_axis("date").to_csv(DATA_DIR / f"{name}.csv")
     return s
+
+
+def fetch_yahoo_ohlcv(name: str = "KOSPI", start: str = "2000-01-01") -> pd.DataFrame:
+    """지수 OHLCV 를 받아 data/{name}_ohlcv.csv 로 저장 (거래량 지표용)."""
+    import requests
+
+    p1 = int(pd.Timestamp(start, tz="UTC").timestamp())
+    p2 = int((pd.Timestamp.now(tz="UTC").normalize() + pd.Timedelta(days=1)).timestamp())
+    r = requests.get(YAHOO_URL.format(sym=INDEX_SYMBOLS[name]),
+                     params={"period1": p1, "period2": p2, "interval": "1d"},
+                     headers={"User-Agent": "Mozilla/5.0"}, timeout=30)
+    r.raise_for_status()
+    res = r.json()["chart"]["result"][0]
+    tz = res["meta"].get("exchangeTimezoneName", "UTC")
+    idx = pd.to_datetime(res["timestamp"], unit="s", utc=True).tz_convert(tz).tz_localize(None).normalize()
+    df = pd.DataFrame(res["indicators"]["quote"][0], index=idx)[COLS].dropna()
+    df = df[~df.index.duplicated(keep="last")]
+    DATA_DIR.mkdir(exist_ok=True)
+    df.rename_axis("date").to_csv(DATA_DIR / f"{name}_ohlcv.csv")
+    return df
