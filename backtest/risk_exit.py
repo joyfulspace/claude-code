@@ -22,8 +22,8 @@ def rsi(close: pd.Series, n: int = 14) -> pd.Series:
     return 100 - 100 / (1 + up / dn)
 
 
-def components(k: pd.DataFrame, vix: pd.Series) -> pd.DataFrame:
-    """k: KOSPI OHLCV. 반환: 지표별 0~1 (클수록 위험)."""
+def components(k: pd.DataFrame, vix: pd.Series, funds: pd.DataFrame | None = None) -> pd.DataFrame:
+    """k: KOSPI OHLCV, funds: 금투협 증시자금동향(선택). 반환: 지표별 0~1 (클수록 위험)."""
     c, v = k["close"], k["volume"]
     vix = vix.reindex(k.index).ffill().shift(1)
     ma200, ma120 = c.rolling(200).mean(), c.rolling(120).mean()
@@ -40,16 +40,24 @@ def components(k: pd.DataFrame, vix: pd.Series) -> pd.DataFrame:
     out["vol_surge"] = pct_rank(v.rolling(20).mean() / v.rolling(120).mean())
     near_high = (c / c.rolling(252).max() >= 0.95)
     out["vol_divergence"] = ((1 - pct_rank(v.rolling(20).mean() / v.rolling(60).mean())) * near_high).where(near_high.notna())
+    # 수급 여력 (금투협 자료는 다음 거래일에 확정되므로 1일 지연)
+    if funds is not None:
+        f = funds.reindex(k.index).ffill().shift(1)
+        out["supply_margin_growth"] = pct_rank(f["margin"].pct_change(60))            # 빚투 급증
+        out["supply_margin_to_deposit"] = pct_rank(f["margin"] / f["deposit"])        # 매수 여력 대비 레버리지
+        out["supply_deposit_drain"] = 1 - pct_rank(f["deposit"].pct_change(60))      # 예탁금(매수 여력) 감소
+        out["supply_forced_sale"] = pct_rank(f["forced_ratio"].rolling(20).mean())    # 반대매매 증가
     return out
 
 
 def score(comp: pd.DataFrame) -> pd.DataFrame:
     cats = {}
-    for cat in ("regime", "sent", "vol"):
+    for cat in ("regime", "sent", "vol", "supply"):
         cols = [c for c in comp.columns if c.startswith(cat + "_")]
-        cats[cat] = comp[cols].mean(axis=1, skipna=False) * 100
+        if cols:
+            cats[cat] = comp[cols].mean(axis=1, skipna=False) * 100
     df = pd.DataFrame(cats)
-    df["raw"] = df[["regime", "sent", "vol"]].mean(axis=1, skipna=False)
+    df["raw"] = df[list(cats)].mean(axis=1, skipna=False)
     # 평균을 내면 점수가 중간으로 몰리므로, 다시 '과거 대비 상위 몇 %' 로 환산(0~100)
     df["score"] = pct_rank(df["raw"], min_periods=252) * 100
     return df

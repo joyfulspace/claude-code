@@ -69,6 +69,7 @@ def main():
     p.add_argument("--days", type=int, default=3)
     p.add_argument("--split", default="2013-01-01")
     p.add_argument("--refresh", action="store_true")
+    p.add_argument("--no-supply", action="store_true", help="수급 지표 제외(비교용)")
     a = p.parse_args()
     pd.options.display.float_format = "{:.3f}".format
     OUT.mkdir(exist_ok=True)
@@ -79,8 +80,13 @@ def main():
         data.fetch_yahoo_index("VIX")
     k = pd.read_csv(data.DATA_DIR / "KOSPI_ohlcv.csv", index_col=0, parse_dates=True)
     vix = data.load_series("VIX")
+    funds = None
+    if not a.no_supply:
+        if a.refresh or not (data.DATA_DIR / "KOFIA_funds.csv").exists():
+            data.fetch_kofia_funds()
+        funds = pd.read_csv(data.DATA_DIR / "KOFIA_funds.csv", index_col=0, parse_dates=True)
 
-    sc = rx.score(rx.components(k, vix))
+    sc = rx.score(rx.components(k, vix, funds))
     sig = rx.binary_signal(sc["score"], a.hi, a.lo, a.days)
     sig[sc["score"].isna()] = 1.0
     gexp = rx.graded_exposure(sc["score"])
@@ -144,12 +150,12 @@ def main():
 
     # --- 현재 상태
     last = sc.dropna().iloc[-1]
-    print(f"\n[현재 {sc.dropna().index[-1].date()}] 위험점수 {last['score']:.0f} (국면 {last['regime']:.0f} / 심리 {last['sent']:.0f} / 거래량 {last['vol']:.0f}) "
-          f"→ {'매도 구간(현금)' if sig.iloc[-1] == 0 else '보유 구간'}, 점진 비중 {gexp.iloc[-1]:.0%}")
+    print(f"\n[현재 {sc.dropna().index[-1].date()}] 위험점수 {last['score']:.0f} (국면 {last['regime']:.0f} / 심리 {last['sent']:.0f} / 거래량 {last['vol']:.0f}"
+          f"{'/ 수급 %.0f' % last['supply'] if 'supply' in last else ''}) → {'매도 구간(현금)' if sig.iloc[-1] == 0 else '보유 구간'}, 점진 비중 {gexp.iloc[-1]:.0%}")
     print("최근 알림:", [str(d.date()) for d in alerts[-5:]])
 
-    chart(k.loc[start:], sc.loc[start:], sig.loc[start:], eq, alerts[alerts >= start], reent[reent >= start], a, OUT / "risk_exit.png")
-    print(f"\n차트: {OUT / 'risk_exit.png'}\n알림 목록: {OUT / 'risk_exit_alerts.csv'}")
+    chart(k.loc[start:], sc.loc[start:], sig.loc[start:], eq, alerts[alerts >= start], reent[reent >= start], a, OUT / ("risk_exit_nosupply.png" if a.no_supply else "risk_exit.png"))
+    print(f"\n차트: {OUT / ("risk_exit_nosupply.png" if a.no_supply else "risk_exit.png")}\n알림 목록: {OUT / 'risk_exit_alerts.csv'}")
 
 
 if __name__ == "__main__":

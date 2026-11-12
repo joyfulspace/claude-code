@@ -138,3 +138,33 @@ def fetch_yahoo_ohlcv(name: str = "KOSPI", start: str = "2000-01-01") -> pd.Data
     DATA_DIR.mkdir(exist_ok=True)
     df.rename_axis("date").to_csv(DATA_DIR / f"{name}_ohlcv.csv")
     return df
+
+
+KOFIA_URL = "https://freesis.kofia.or.kr/meta/getMetaDataList.do"
+
+
+def _kofia(obj: str, start: str, end: str) -> pd.DataFrame:
+    import requests
+
+    r = requests.post(KOFIA_URL, headers={"User-Agent": "Mozilla/5.0", "Referer": "https://freesis.kofia.or.kr/",
+                                           "Content-Type": "application/json;charset=UTF-8"},
+                      json={"dmSearch": {"tmpV40": "1000000", "tmpV41": "1", "tmpV1": "D", "tmpV45": start.replace("-", ""),
+                                         "tmpV46": end.replace("-", ""), "OBJ_NM": obj}}, timeout=90)
+    r.raise_for_status()
+    df = pd.DataFrame(r.json()["ds1"])
+    df.index = pd.to_datetime(df["TMPV1"])
+    return df.drop(columns="TMPV1").sort_index()
+
+
+def fetch_kofia_funds(start: str = "2000-01-01", end: str | None = None) -> pd.DataFrame:
+    """금융투자협회 FreeSIS 증시자금동향 → data/KOFIA_funds.csv (단위: 백만원, forced_ratio 는 %).
+    deposit=투자자예탁금, margin=신용융자 잔고(코스피+코스닥), unpaid=위탁매매 미수금, forced_ratio=미수금 대비 반대매매 비중.
+    (컬럼 의미는 2020-03 예탁금 38조, 2021-09 신용융자 25.5조 등 알려진 값과 대조해 확인)"""
+    end = end or pd.Timestamp.now().strftime("%Y%m%d")
+    a = _kofia("STATSCU0100000060BO", start, end)
+    b = _kofia("STATSCU0100000070BO", start, end)
+    df = pd.DataFrame({"deposit": a["TMPV2"], "margin": b["TMPV2"], "unpaid": a["TMPV5"],
+                       "forced_ratio": a["TMPV7"]}).astype(float)
+    DATA_DIR.mkdir(exist_ok=True)
+    df.rename_axis("date").to_csv(DATA_DIR / "KOFIA_funds.csv")
+    return df
