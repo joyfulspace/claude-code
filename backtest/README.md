@@ -37,3 +37,7 @@ KOSPI(^KS11)와 S&P500(^GSPC)를 `data/KOSPI.csv`, `data/SPX.csv`로 저장. 네
     python3 backtest/run_risk_exit.py --hi 85 --lo 60 --days 3
 시장 국면·심리(VIX, RSI)·거래량 지표를 과거 대비 백분위로 점수화(`risk_exit.py`), 점수가 높으면 전액 매도 / 점진 감축을 Buy&Hold와 비교.
 결과: `results/risk_exit.png`(알림 표시 차트), `results/risk_exit_alerts.csv`, `results/risk_exit_signals.csv`. 수급 지표는 미반영.
+
+## 추세 이탈 × 수급 조합 비교
+    python3 backtest/run_trend_supply.py
+T1(200일선 이탈), T2(데드크로스), S(수급 단독), C1(이탈 AND 수급), C2(수급에 따라 기준선 변경)를 Buy&Hold와 비교. `results/trend_supply.png`.
