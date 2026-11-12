@@ -84,15 +84,19 @@ def read_csv(path: Path) -> list[dict]:
 
 
 def _price84_filled(c: Complex, p1: float | None) -> dict:
-    """열람용 84㎡ 환산가. 2025.9(±2개월) 가격이 없으면 그 이전 최대 12개월 안의 가장 최근 월 가격을 이월(추정).
+    """열람용 84㎡ 환산가. 2025.9(±2개월) 가격이 없으면 그 이전 최대 12개월 안의 가장 최근 월 가격을 이월, 그것도 없으면 이후 가장 가까운 월 가격을 사용(추정).
     점수·필터에는 쓰지 않는다(price84 는 그대로)."""
     if p1:
         return {"price84_filled": p1 * 84 * PYEONG_PER_M2, "price84_src": "2025-09"}
     prior = [(t, p) for t, p in zip(c.t, c.p) if M.T1 - 12 <= t < M.T1 - 2 and p]
-    if not prior:
-        return {"price84_filled": None, "price84_src": ""}
-    t, p = max(prior)
-    return {"price84_filled": p * 84 * PYEONG_PER_M2, "price84_src": f"이월 {idx_to_ym(t)}"}
+    if prior:
+        t, p = max(prior)
+        return {"price84_filled": p * 84 * PYEONG_PER_M2, "price84_src": f"이월 {idx_to_ym(t)}"}
+    later = [(t, p) for t, p in zip(c.t, c.p) if t > M.T1 + 2 and p]   # 이전이 없으면 이후 가장 가까운 월
+    if later:
+        t, p = min(later)
+        return {"price84_filled": p * 84 * PYEONG_PER_M2, "price84_src": f"이후 {idx_to_ym(t)}"}
+    return {"price84_filled": None, "price84_src": ""}
 
 
 def compute(complexes: list[Complex], households: dict[str, dict],
