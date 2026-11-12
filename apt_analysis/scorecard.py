@@ -83,6 +83,18 @@ def read_csv(path: Path) -> list[dict]:
         return list(csv.DictReader(f))
 
 
+def _price84_filled(c: Complex, p1: float | None) -> dict:
+    """열람용 84㎡ 환산가. 2025.9(±2개월) 가격이 없으면 그 이전 최대 12개월 안의 가장 최근 월 가격을 이월(추정).
+    점수·필터에는 쓰지 않는다(price84 는 그대로)."""
+    if p1:
+        return {"price84_filled": p1 * 84 * PYEONG_PER_M2, "price84_src": "2025-09"}
+    prior = [(t, p) for t, p in zip(c.t, c.p) if M.T1 - 12 <= t < M.T1 - 2 and p]
+    if not prior:
+        return {"price84_filled": None, "price84_src": ""}
+    t, p = max(prior)
+    return {"price84_filled": p * 84 * PYEONG_PER_M2, "price84_src": f"이월 {idx_to_ym(t)}"}
+
+
 def compute(complexes: list[Complex], households: dict[str, dict],
             income: dict[str, float]) -> list[dict]:
     rows = []
@@ -108,6 +120,7 @@ def compute(complexes: list[Complex], households: dict[str, dict],
             "vol_12m": monthly_trades(c, M.T1 - M.RECENT_MONTHS + 1, M.T1),
             "vol_bear": monthly_trades(c, M.BEAR_LO, M.BEAR_HI),
             "price84": p1 * 84 * PYEONG_PER_M2 if p1 else None,
+            **_price84_filled(c, p1),
             "dist_km": dist, "coord_estimated": coord_est,
             "households": None, "kapt_type": "", "kapt_matched": False,
         })
