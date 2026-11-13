@@ -41,3 +41,7 @@ KOSPI(^KS11)와 S&P500(^GSPC)를 `data/KOSPI.csv`, `data/SPX.csv`로 저장. 네
 ## 추세 이탈 × 수급 조합 비교
     python3 backtest/run_trend_supply.py
 T1(200일선 이탈), T2(데드크로스), S(수급 단독), C1(이탈 AND 수급), C2(수급에 따라 기준선 변경)를 Buy&Hold와 비교. `results/trend_supply.png`.
+
+## 큰 하락 조기경보 평가 (수익률이 아닌 하락 포착 중심)
+    python3 backtest/run_crash_warning.py
+라벨: 60거래일 내 -15% 하락. 지표별 AUC(블록 부트스트랩 CI, 기간별 방향 일관성), 하락 구간별 경보 시점, 워크포워드 로지스틱 검증. `results/crash_warning.png`.
