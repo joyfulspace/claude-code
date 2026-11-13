@@ -97,7 +97,7 @@ def synthetic_panel(n_stocks: int = 40, days: int = 2500, seed: int = 1):
 
 
 YAHOO_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{sym}"
-INDEX_SYMBOLS = {"SPX": "^GSPC", "KOSPI": "^KS11", "VIX": "^VIX"}
+INDEX_SYMBOLS = {"SPX": "^GSPC", "KOSPI": "^KS11", "VIX": "^VIX", "USDKRW": "KRW=X", "TNX": "^TNX", "KOSDAQ": "^KQ11"}
 
 
 def fetch_yahoo_index(name: str, start: str = "2000-01-01", end: str | None = None) -> pd.Series:

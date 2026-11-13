@@ -49,3 +49,8 @@ T1(200일선 이탈), T2(데드크로스), S(수급 단독), C1(이탈 AND 수�
 ## 하락 시작 후 대응 규칙 평가
     python3 backtest/run_decline_response.py
 고점 대비 낙폭(DD), 200일선 이탈, 데드크로스, VIX/변동성, 한미 동반 하락 등 발동 규칙을 이벤트 단위(유효율·오경보·120일 후 수익)와 큰 하락 구간별 회피비율로 비교. `results/decline_response.png`.
+
+## 매도 신호 실험실 (수급·시장민감도·심리)
+    python3 backtest/fetch_indices.py   # KOSPI, S&P500, VIX, USD/KRW, 미국 10년 금리, 코스닥
+    python3 backtest/run_sell_lab.py
+하락 상태(고점 대비 -8% 이하)에서 17개 지표의 추가 하락 구분력(AUC)과, 그룹 확인 조건을 붙인 매도 규칙을 기본 규칙과 비교. `results/sell_lab.png`.
