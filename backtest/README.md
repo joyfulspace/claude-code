@@ -45,3 +45,7 @@ T1(200일선 이탈), T2(데드크로스), S(수급 단독), C1(이탈 AND 수�
 ## 큰 하락 조기경보 평가 (수익률이 아닌 하락 포착 중심)
     python3 backtest/run_crash_warning.py
 라벨: 60거래일 내 -15% 하락. 지표별 AUC(블록 부트스트랩 CI, 기간별 방향 일관성), 하락 구간별 경보 시점, 워크포워드 로지스틱 검증. `results/crash_warning.png`.
+
+## 하락 시작 후 대응 규칙 평가
+    python3 backtest/run_decline_response.py
+고점 대비 낙폭(DD), 200일선 이탈, 데드크로스, VIX/변동성, 한미 동반 하락 등 발동 규칙을 이벤트 단위(유효율·오경보·120일 후 수익)와 큰 하락 구간별 회피비율로 비교. `results/decline_response.png`.
