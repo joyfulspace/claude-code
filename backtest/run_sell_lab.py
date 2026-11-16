@@ -132,10 +132,13 @@ def main():
                    "120일후 평균수익": done.ret_end.mean(), "평균 회피비율": np.mean(av), "회피25%↑ 구간": f"{sum(x >= .25 for x in av)}/{len(av)}",
                    "발동 지연(일,중앙)": np.median(dl) if dl else np.nan}
         avoid[n] = av
+    pd.DataFrame(rows).T.to_csv(OUT / "sell_lab_rules.csv", encoding="utf-8-sig")
     print(f"[3] 매도 규칙 비교 (평가 구간 {start.date()}~, 큰 하락 {len(base_ep)}개)")
     print(pd.DataFrame(rows).T.to_string(), "\n")
     ep_t = pd.DataFrame({n: [f"{x:.0%}" if x > 0 else "-" for x in v] for n, v in avoid.items()})
     ep_t.insert(0, "고점", [e.date() for e in base_ep["peak"]]); ep_t.insert(1, "낙폭", [f"{x:.0%}" for x in base_ep["depth"]])
+    pd.DataFrame(avoid, index=[e.date() for e in base_ep["peak"]]).to_csv(OUT / "sell_lab_episodes.csv", encoding="utf-8-sig")
+    base_ep.to_csv(OUT / "sell_lab_episode_dates.csv", index=False)
     print("[4] 큰 하락 구간별 회피비율"); print(ep_t.to_string(index=False), "\n")
 
     # ---------- 5) 현재

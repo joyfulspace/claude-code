@@ -54,3 +54,8 @@ T1(200일선 이탈), T2(데드크로스), S(수급 단독), C1(이탈 AND 수�
     python3 backtest/fetch_indices.py   # KOSPI, S&P500, VIX, USD/KRW, 미국 10년 금리, 코스닥
     python3 backtest/run_sell_lab.py
 하락 상태(고점 대비 -8% 이하)에서 17개 지표의 추가 하락 구분력(AUC)과, 그룹 확인 조건을 붙인 매도 규칙을 기본 규칙과 비교. `results/sell_lab.png`.
+
+## 결과 설명용 그림 (한글)
+    pip install koreanize-matplotlib
+    python3 backtest/run_sell_lab.py && python3 backtest/explain_charts.py
+`results/explain_1~5_*.png`: 규칙 예시, 규칙 비교, 구간별 회피, 지표 구분력, 현재 위치.
