@@ -59,3 +59,7 @@ T1(200일선 이탈), T2(데드크로스), S(수급 단독), C1(이탈 AND 수�
     pip install koreanize-matplotlib
     python3 backtest/run_sell_lab.py && python3 backtest/explain_charts.py
 `results/explain_1~5_*.png`: 규칙 예시, 규칙 비교, 구간별 회피, 지표 구분력, 현재 위치.
+
+## 지표 하나씩 확인 조건으로 평가
+    python3 backtest/run_single_indicator.py --thr 70
+(고점 대비 -8% 이하) AND (지표 하나 상위 30%) 규칙 17개를 기본 규칙과 비교. `results/single_1_지표별.png`, `single_2_구간별.png`.
