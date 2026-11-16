@@ -72,3 +72,7 @@ T1(200일선 이탈), T2(데드크로스), S(수급 단독), C1(이탈 AND 수�
 ## '하락을 잘 피했다' 점수 정의 (avoid_score.py)
 지표 단독 신호 → 다음날 시가 매도(재진입 없음), 120거래일 측정 창, 신호 간 120일 간격.
 점수 = 큰 하락 구간별 평균 피한 손실 - λ × 모든 신호의 평균 놓친 상승 (금액형/비율형, λ=0.25/0.5/1). 그림: `python3 backtest/explain_avoid_def.py`.
+
+## 지표별 최적화 + 검증 (확정 정의)
+    python3 backtest/run_avoid_opt.py && python3 backtest/explain_avoid_opt.py
+창 길이 × 임계(상위 5~30%) 탐색, 기간 교차·구간별 교차·가짜 지표 기준선 검증, 신호 수가 같은 무작위 신호와 비교. `results/avo_1~3_*.png`.

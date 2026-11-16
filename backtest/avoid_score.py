@@ -67,3 +67,24 @@ class Scorer:
             out[f"금액 λ={lam}"] = out["평균 피한손실(금액)"] - lam * m
             out[f"비율 λ={lam}"] = out["평균 회피비율"] - lam * m / self.mean_depth
         return out
+
+
+def detail(self, cond):
+    """최적화·교차검증용 세부값: 구간별 피한 손실 B_j(금액형), 신호 인덱스, 신호별 놓친 상승 m."""
+    cond = np.asarray(cond, bool).copy(); cond[:self.start_i] = False
+    ev = self.events(cond)
+    owner = {}
+    for i in ev:
+        cands = [(abs(i - pk), j) for j, (pk, tr, _, _) in enumerate(self.ep) if max(pk - PRE, self.start_i) <= i <= tr]
+        if cands:
+            owner[i] = min(cands)[1]
+    Bj = np.zeros(len(self.ep))
+    for j, (pk, tr, pkd, depth) in enumerate(self.ep):
+        mine = [i for i in ev if owner.get(i) == j]
+        if mine:
+            i0 = mine[0]; P = self.o[i0 + 1] if i0 + 1 < self.n else self.c[i0]
+            Bj[j] = max((P - self.c[tr]) / P, 0.0)
+    return {"B": Bj, "ev": ev, "m": self.m[ev] if len(ev) else np.array([]), "dates": self.idx[ev] if len(ev) else pd.DatetimeIndex([])}
+
+
+Scorer.detail = detail
