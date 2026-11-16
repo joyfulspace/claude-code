@@ -1,7 +1,7 @@
 """'하락을 잘 피했다' 점수 (확정안, 재진입 없음).
 
 신호 = 지표 단독(또는 임의의 bool 시계열). 신호일 종가에 확인 → 다음날 시가에 전량 매도했다고 가정. 120거래일 측정 창. 한 번 울리면 120일간은 다음 신호를 세지 않음(중복 방지).
-· 피한 손실(큰 하락 구간별): 구간(고점→저점) 안에서, 고점 60일 전부터 저점까지 처음 울린 신호의 매도가 P 에 대해
+· 피한 손실(큰 하락 구간별): 구간(고점 60일 전~저점) 안에서 처음 울린 신호(한 신호는 고점에 가장 가까운 한 구간에만 인정)의 매도가 P 에 대해
       금액 B = (P - 저점)/P      (매도한 돈의 몇 %가 더 빠지는 걸 피했나)
       비율 A = (P - 저점)/(고점 - 저점)   (구간 낙폭의 몇 %를 피했나; 못 팔면 0, 100% 초과/음수는 0~1로 자름)
 · 기회비용(모든 신호): 매도 후 120거래일 안에 매도가 대비 최고가까지 오른 폭 m = max(0, 최고/P - 1)
@@ -43,14 +43,19 @@ class Scorer:
         return np.array([i for i in ev if self.wlen[i] > 0], int)
 
     def score(self, cond):
+        """신호 = events(): 120일 간격으로 센 신호들. 한 신호는 자신이 속한 구간 중 고점에 가장 가까운 한 구간에만 공을 인정."""
         cond = np.asarray(cond, bool).copy(); cond[:self.start_i] = False
         ev = self.events(cond)
+        owner = {}
+        for i in ev:
+            cands = [(abs(i - pk), j) for j, (pk, tr, _, _) in enumerate(self.ep) if max(pk - PRE, self.start_i) <= i <= tr]
+            if cands:
+                owner[i] = min(cands)[1]
         B, A, first = [], [], []
-        for pk, tr, pkd, depth in self.ep:
-            lo = max(pk - PRE, self.start_i)
-            seg = cond[lo:tr + 1]
-            if seg.any():
-                i0 = lo + int(np.argmax(seg)); P = self.o[i0 + 1] if i0 + 1 < self.n else self.c[i0]
+        for j, (pk, tr, pkd, depth) in enumerate(self.ep):
+            mine = [i for i in ev if owner.get(i) == j]
+            if mine:
+                i0 = mine[0]; P = self.o[i0 + 1] if i0 + 1 < self.n else self.c[i0]
                 B.append(max((P - self.c[tr]) / P, 0.0)); A.append(float(np.clip((P - self.c[tr]) / (self.c[pk] - self.c[tr]), 0, 1)))
                 first.append((self.idx[i0] - pkd).days)
             else:
