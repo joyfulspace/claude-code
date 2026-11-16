@@ -68,3 +68,7 @@ T1(200일선 이탈), T2(데드크로스), S(수급 단독), C1(이탈 AND 수�
     python3 backtest/run_param_opt.py && python3 backtest/explain_param_opt.py
 점수 = 회피비율과 유효율의 조화평균. 지표 창·임계 백분위·방향·하락 D를 격자 탐색(주변 평균이 높은 안정 구간 선택), 기간 교차검증과
 가짜 지표 최적화(우연 기준선)로 검증. `results/opt_1~4_*.png`, `param_opt_summary.csv`.
+
+## '하락을 잘 피했다' 점수 정의 (avoid_score.py)
+지표 단독 신호 → 다음날 시가 매도(재진입 없음), 120거래일 측정 창, 신호 간 120일 간격.
+점수 = 큰 하락 구간별 평균 피한 손실 - λ × 모든 신호의 평균 놓친 상승 (금액형/비율형, λ=0.25/0.5/1). 그림: `python3 backtest/explain_avoid_def.py`.
