@@ -63,3 +63,8 @@ T1(200일선 이탈), T2(데드크로스), S(수급 단독), C1(이탈 AND 수�
 ## 지표 하나씩 확인 조건으로 평가
     python3 backtest/run_single_indicator.py --thr 70
 (고점 대비 -8% 이하) AND (지표 하나 상위 30%) 규칙 17개를 기본 규칙과 비교. `results/single_1_지표별.png`, `single_2_구간별.png`.
+
+## 지표별 파라미터 최적화 후 비교
+    python3 backtest/run_param_opt.py && python3 backtest/explain_param_opt.py
+점수 = 회피비율과 유효율의 조화평균. 지표 창·임계 백분위·방향·하락 D를 격자 탐색(주변 평균이 높은 안정 구간 선택), 기간 교차검증과
+가짜 지표 최적화(우연 기준선)로 검증. `results/opt_1~4_*.png`, `param_opt_summary.csv`.
