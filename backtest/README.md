@@ -80,3 +80,7 @@ T1(200일선 이탈), T2(데드크로스), S(수급 단독), C1(이탈 AND 수�
 ## 신호 발생 시점 시각화
     python3 backtest/explain_signal_timeline.py
 λ=0.1 최적 파라미터의 지표별 신호 시점을 큰 하락 구간과 함께 표시. `results/sig_1_전체시계열.png`, `sig_2_최근시계열.png`.
+
+## 지표 조합 평가 ('n개 이상 울리면 진짜 신호')
+    python3 backtest/run_combo.py && python3 backtest/explain_combo.py
+최근 W거래일 안에 신호가 울린 지표 수 ≥ n (n=1~16, W=5/20/60), 울린 그룹 수 변형, 파라미터 기본값/전체최적/교차검증 3가지, 조합 count 를 무작위 이동한 우연 기준선과 비교. `results/combo_1~6_*.png`.
