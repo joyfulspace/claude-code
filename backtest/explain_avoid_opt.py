@@ -20,7 +20,7 @@ warnings.simplefilter("ignore")
 OUT = Path(__file__).parent / "results"
 plt.rcParams.update({"font.size": 13, "axes.titlesize": 15, "axes.titleweight": "bold", "axes.spines.top": False, "axes.spines.right": False})
 GC = {"수급": "#2b8a3e", "시장민감도": "#1971c2", "심리": "#f08c00"}
-LAM = 0.5
+LAM = 0.1
 
 
 def main():
@@ -30,7 +30,7 @@ def main():
     allE = np.ones(ctx.nE, bool)
     nl = A["null"][LAM]
 
-    # ---- 그림 1: 지표 비교 (λ=0.5)
+    # ---- 그림 1: 지표 비교 (λ=0.1)
     T = R[R["λ"] == LAM].copy(); T["검증"] = (T["기간교차"] + T["구간별교차"]) / 2
     T = T.sort_values("검증")
     y = np.arange(len(T)); h = 0.27
@@ -41,8 +41,8 @@ def main():
     ax.axvline(nl["full"][1], color="#1971c2", ls="--", lw=1.5); ax.text(nl["full"][1], len(T) - 0.4, " ② 우연 기준선(가짜 지표 95%)", color="#1971c2", fontsize=11, va="top")
     ax.axvline(nl["cv"][1], color="k", ls="--", lw=1.5); ax.text(nl["cv"][1], 0.2, " ③ 우연 기준선", fontsize=11)
     ax.set_yticks(y); ax.set_yticklabels([f"{r['지표']}  (창 {int(r['창'])}, 상위 {int(r['상위q%'])}%)" for _, r in T.iterrows()], fontsize=11)
-    ax.set_xlabel("점수 (λ=0.5, 높을수록 좋음)"); ax.grid(alpha=0.25, axis="x"); ax.legend(loc="lower right", fontsize=11)
-    ax.set_title("최적화한 값으로 지표 비교 (λ=0.5): ③ 막대가 점선을 넘어야 '우연 이상'")
+    ax.set_xlabel("점수 (λ=0.1, 높을수록 좋음)"); ax.grid(alpha=0.25, axis="x"); ax.legend(loc="lower right", fontsize=11)
+    ax.set_title("최적화한 값으로 지표 비교 (λ=0.1): ③ 막대가 점선을 넘어야 '우연 이상'")
     fig.tight_layout(); fig.savefig(OUT / "avo_1_지표비교.png", dpi=110); plt.close(fig)
 
     # ---- 그림 2: 신호 수가 같은 무작위와 비교
@@ -68,7 +68,7 @@ def main():
     ax.plot(mid, md, color="#868e96", lw=2, label="무작위 신호 중앙값")
     for g, c_ in GC.items():
         s_ = P[P["g"] == g]; ax.scatter(s_["n"], s_["s"], s=35, color=c_, alpha=0.75, label=f"{g} 지표의 파라미터 조합 하나하나")
-    ax.set_xlabel("20년간 신호 횟수 (많을수록 자주 파는 규칙)"); ax.set_ylabel("점수 (λ=0.5)")
+    ax.set_xlabel("20년간 신호 횟수 (많을수록 자주 파는 규칙)"); ax.set_ylabel("점수 (λ=0.1)")
     ax.set_title("같은 신호 횟수의 무작위와 비교: 회색 띠를 넘는 점이 '지표 덕분'에 낫다고 볼 수 있는 규칙", fontsize=14)
     ax.legend(loc="lower left", fontsize=11); ax.grid(alpha=0.25)
     fig.tight_layout(); fig.savefig(OUT / "avo_2_무작위비교.png", dpi=110); plt.close(fig)
@@ -82,7 +82,7 @@ def main():
     print(P[P["above"]].groupby("nm").size().sort_values(ascending=False).to_string())
     P.to_csv(OUT / "avoid_opt_combos.csv", index=False, encoding="utf-8-sig")
 
-    # ---- 그림 3: 큰 하락별 피한 손실 (λ=0.5 최적값)
+    # ---- 그림 3: 큰 하락별 피한 손실 (λ=0.1 최적값)
     T = R[R["λ"] == LAM].copy(); T["검증"] = (T["기간교차"] + T["구간별교차"]) / 2
     top = T.sort_values("검증", ascending=False).head(6)
     M = np.array([r for r in top["B_j"]])
@@ -96,6 +96,24 @@ def main():
     ax.set_title("검증 상위 6개 지표: 큰 하락 8번에서 '피한 손실' (매도한 돈의 몇 %가 더 빠지는 걸 피했나)", fontsize=15, fontweight="bold", pad=12)
     for s_ in ax.spines.values(): s_.set_visible(False)
     fig.tight_layout(); fig.savefig(OUT / "avo_3_구간별.png", dpi=110); plt.close(fig)
+    # ---- 그림 4: λ에 따른 변화
+    Rl = R.copy(); Rl["검증"] = (Rl["기간교차"] + Rl["구간별교차"]) / 2
+    lams = sorted(Rl["λ"].unique())
+    rank = Rl.pivot(index="지표", columns="λ", values="검증").rank(ascending=False).mean(axis=1).sort_values()
+    sig = Rl.pivot(index="지표", columns="λ", values="신호")
+    fig, ax = plt.subplots(1, 2, figsize=(18, 7.5))
+    cols = plt.cm.tab10(np.arange(10))
+    for i, nm in enumerate(rank.index[:6]):
+        v = Rl[Rl["지표"] == nm].sort_values("λ")
+        ax[0].plot(range(len(lams)), v["검증"], marker="o", lw=2.5, color=cols[i], label=nm)
+        ax[1].plot(range(len(lams)), sig.loc[nm, lams], marker="o", lw=2.5, color=cols[i], label=nm)
+    nul = [np.mean([A["null"][l]["cv"][1], A["null"][l]["loo"][1]]) for l in lams]
+    ax[0].plot(range(len(lams)), nul, "k--", lw=2, label="우연 기준선 (가짜 지표 95%)")
+    for a_ in ax:
+        a_.set_xticks(range(len(lams))); a_.set_xticklabels([str(l) for l in lams]); a_.set_xlabel("λ (기회비용 가중치) → 오른쪽일수록 놓친 상승을 무겁게 봄"); a_.grid(alpha=0.25)
+    ax[0].set_ylabel("검증 점수(기간교차·구간별교차 평균)"); ax[0].set_title("λ가 커질수록 점수는 줄고, 우연 기준선과의 차이가 사라져요"); ax[0].legend(fontsize=10.5)
+    ax[1].set_ylabel("최적값에서의 신호 횟수 (20년)"); ax[1].set_title("λ가 클수록 최적값이 신호를 적게 내는 쪽으로 이동")
+    fig.tight_layout(); fig.savefig(OUT / "avo_4_람다변화.png", dpi=110); plt.close(fig)
     print("완료")
 
 

@@ -1,6 +1,6 @@
 """지표별 파라미터 최적화(확정 정의) + 검증 + 비교.   python3 backtest/run_avoid_opt.py
 
-목표: 점수(λ) = 큰 하락 8번의 평균 '피한 손실(금액형)' - λ × 모든 신호의 평균 '놓친 상승'   (λ = 0.25, 0.5, 1 각각 최적화)
+목표: 점수(λ) = 큰 하락 8번의 평균 '피한 손실(금액형)' - λ × (모든 신호의 놓친 상승 합 ÷ 큰 하락 수)   (λ = 0.05, 0.1, 0.2 각각 최적화)
 탐색: 지표 창 길이 × 임계(상위 q% = 5,10,15,20,25,30), 방향은 이론대로 고정. 선택은 인접 임계 3개의 평균이 높은 곳(한 점 튐 방지).
 검증: (1) 기간 교차(~2012 / 2013~)  (2) 구간별 교차(큰 하락 1개 빼고 찾아 그 하락에 적용)  (3) 우연 기준선(가짜 지표에 같은 절차)
 """
@@ -19,7 +19,7 @@ from run_sell_lab import load_all  # noqa: E402
 warnings.simplefilter("ignore")
 OUT = Path(__file__).parent / "results"
 Q = [5, 10, 15, 20, 25, 30]
-LAMS = [0.25, 0.5, 1.0]
+LAMS = [0.05, 0.1, 0.2, 0.5, 1.0]
 SPLIT = pd.Timestamp("2013-01-01")
 NFAKE = 150
 
@@ -34,9 +34,10 @@ class Ctx:
 
 
 def sc(det, E, Vmask, lam):
+    """점수 = 평균 피한 손실 - λ × (구간 안 신호들의 놓친 상승 합 / 큰 하락 수)  ← 신호가 쌓이면 비용도 정비례로 늘어남"""
     b = det["B"][E].mean()
     v = det["m"][Vmask] if len(det["m"]) else np.array([])
-    return b - lam * (v.mean() if len(v) else 0.0)
+    return b - lam * (v.sum() / max(int(E.sum()), 1))
 
 
 def vmask(det, kind, ctx, j=None):
@@ -79,7 +80,7 @@ def procedure(grid, ctx, lam):
         E = np.ones(ctx.nE, bool); E[j] = False
         (w2, q2), _ = select(grid, E, "loo", lam, ctx, j)
         d = grid[w2][q2]
-        mm = d["m"].mean() if len(d["m"]) else 0.0
+        mm = d["m"].sum() / ctx.nE if len(d["m"]) else 0.0
         loo.append(d["B"][j] - lam * mm)
     return {"w": w, "q": q, "full": full, "cv": float(np.mean(cv)), "loo": float(np.mean(loo)), "raw": raw}
 
@@ -121,7 +122,7 @@ def main():
             rows.append({"그룹": g, "지표": nm, "λ": lam, "파라미터명": pn, "창": wins[r["w"]], "상위q%": Q[r["q"]],
                          "기본값점수": sc(dd, np.ones(ctx.nE, bool), np.ones(len(dd["m"]), bool), lam),
                          "최적점수(전체)": r["full"], "기간교차": r["cv"], "구간별교차": r["loo"],
-                         "신호": len(d["ev"]), "피한손실": d["B"].mean(), "놓친상승": d["m"].mean() if len(d["m"]) else 0.0,
+                         "신호": len(d["ev"]), "피한손실": d["B"].mean(), "놓친상승": d["m"].mean() if len(d["m"]) else 0.0, "총기회비용/구간": d["m"].sum() / ctx.nE,
                          "큰하락중신호": int((d["B"] > 0).sum()), "B_j": d["B"].tolist()})
     R = pd.DataFrame(rows)
     R.to_pickle(OUT / "avoid_opt_results.pkl")
@@ -136,10 +137,11 @@ def main():
         T["검증평균"] = (T["기간교차"] + T["구간별교차"]) / 2
         T = T.sort_values("검증평균", ascending=False)
         print(f"[λ={lam}] 지표 비교 (최적값 기준; 우연 95%: 전체 {nl[lam]['full'][1]:.3f} / 기간 {nl[lam]['cv'][1]:.3f} / 구간별 {nl[lam]['loo'][1]:.3f})")
-        print(T[["그룹", "지표", "창", "상위q%", "기본값점수", "최적점수(전체)", "기간교차", "구간별교차", "신호", "피한손실", "놓친상승", "큰하락중신호"]].to_string(index=False), "\n")
+        show = T if lam <= 0.2 else T.head(6)
+        print(show[["그룹", "지표", "창", "상위q%", "기본값점수", "최적점수(전체)", "기간교차", "구간별교차", "신호", "피한손실", "총기회비용/구간", "큰하락중신호"]].to_string(index=False), "\n")
     # 순위 안정성
     rk = pd.DataFrame({lam: R[R["λ"] == lam].set_index("지표").apply(lambda r: (r["기간교차"] + r["구간별교차"]) / 2, axis=1).rank(ascending=False) for lam in LAMS})
-    print("[λ별 검증 순위] (1=가장 좋음)"); print(rk.sort_values(0.5).to_string())
+    print("[λ별 검증 순위] (1=가장 좋음)"); print(rk.sort_values(0.1).to_string())
 
 
 if __name__ == "__main__":

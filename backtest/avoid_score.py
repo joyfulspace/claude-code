@@ -5,7 +5,7 @@
       금액 B = (P - 저점)/P      (매도한 돈의 몇 %가 더 빠지는 걸 피했나)
       비율 A = (P - 저점)/(고점 - 저점)   (구간 낙폭의 몇 %를 피했나; 못 팔면 0, 100% 초과/음수는 0~1로 자름)
 · 기회비용(모든 신호): 매도 후 120거래일 안에 매도가 대비 최고가까지 오른 폭 m = max(0, 최고/P - 1)
-· 점수  금액 = 평균 B - λ × 평균 m           비율 = 평균 A - λ × (평균 m / 평균 큰 하락 낙폭)
+· 점수  금액 = 평균 B - λ × (m 의 합 / 큰 하락 수)     비율 = 평균 A - λ × (m 의 합 / 큰 하락 수) / 평균 큰 하락 낙폭   (신호가 쌓이면 비용도 쌓임)
 """
 import numpy as np
 import pandas as pd
@@ -14,7 +14,7 @@ import risk_exit as rx
 
 FWD, COOL, PRE = 120, 120, 60
 START = pd.Timestamp("2006-01-02")
-LAMBDAS = (0.25, 0.5, 1.0)
+LAMBDAS = (0.05, 0.1, 0.2)
 
 
 class Scorer:
@@ -61,11 +61,12 @@ class Scorer:
             else:
                 B.append(0.0); A.append(0.0)
         m = float(np.mean(self.m[ev])) if len(ev) else 0.0
+        m_total = float(np.sum(self.m[ev])) if len(ev) else 0.0
         out = {"신호": len(ev), "평균 피한손실(금액)": float(np.mean(B)), "평균 회피비율": float(np.mean(A)), "평균 놓친상승": m,
                "큰하락 중 신호": int(sum(b > 0 for b in B)), "발동(고점대비 일, 중앙)": float(np.median(first)) if first else np.nan}
         for lam in LAMBDAS:
-            out[f"금액 λ={lam}"] = out["평균 피한손실(금액)"] - lam * m
-            out[f"비율 λ={lam}"] = out["평균 회피비율"] - lam * m / self.mean_depth
+            out[f"금액 λ={lam}"] = out["평균 피한손실(금액)"] - lam * m_total / len(self.ep)
+            out[f"비율 λ={lam}"] = out["평균 회피비율"] - lam * (m_total / len(self.ep)) / self.mean_depth
         return out
 
 
