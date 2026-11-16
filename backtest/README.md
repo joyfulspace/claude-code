@@ -76,3 +76,7 @@ T1(200일선 이탈), T2(데드크로스), S(수급 단독), C1(이탈 AND 수�
 ## 지표별 최적화 + 검증 (확정 정의)
     python3 backtest/run_avoid_opt.py && python3 backtest/explain_avoid_opt.py
 창 길이 × 임계(상위 5~30%) 탐색, 기간 교차·구간별 교차·가짜 지표 기준선 검증, 신호 수가 같은 무작위 신호와 비교. `results/avo_1~3_*.png`.
+
+## 신호 발생 시점 시각화
+    python3 backtest/explain_signal_timeline.py
+λ=0.1 최적 파라미터의 지표별 신호 시점을 큰 하락 구간과 함께 표시. `results/sig_1_전체시계열.png`, `sig_2_최근시계열.png`.
