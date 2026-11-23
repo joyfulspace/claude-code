@@ -118,3 +118,7 @@ T1(200일선 이탈), T2(데드크로스), S(수급 단독), C1(이탈 AND 수�
 ## 지표 상세 분석 범용 스크립트 (explain_indicator.py)
     python3 backtest/explain_indicator.py "한미 상관"
 λ=0.1 최적 파라미터로 개요·신호별 결과·파라미터 민감도·검증·최근·백분위 구간별 일 단위 진단(`ind_<지표>_1~6_*.png`)과 신호표 CSV(`<지표>_signals.csv`) 생성.
+
+## 예탁금 감소 + 한미 상관 조합 / 한미 상관 파라미터 탐색 (예탁금 감소 고정)
+    python3 backtest/run_pair.py && python3 backtest/explain_pair.py
+OR / AND(같은 날, 최근 W일) 조합, 한미 상관 창·상위% 탐색, 기간교차·구간별교차·가짜 한미 상관 우연 기준선. `results/pair_1~5_*.png`.
