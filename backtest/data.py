@@ -192,3 +192,58 @@ def monthly_to_daily(monthly: pd.Series, daily_index: pd.DatetimeIndex, lag_mont
     """월별 값(월초 날짜)을 '발표 지연'을 반영해 일별로 확장: M월 값은 M+lag_months 월 1일부터 사용(미래 정보 방지)."""
     s = monthly.copy(); s.index = s.index + pd.DateOffset(months=lag_months)
     return s.reindex(s.index.union(daily_index)).ffill().reindex(daily_index)
+
+
+# ---- 반대매매 비중 보정 (금융투자협회 통계의 집계 기준 변경: 대상금액 -> 체결금액, 2023-10-25 추정) ----
+STUCK_EOK_0 = 4943.0      # 키움증권 영풍제지 미수금(공시, 2023-10-20): 반대매매 대상으로 남아 매일 중복 집계됨
+STUCK_EOK_1 = 4333.0      # 거래재개 후 반대매매·회수 뒤 남은 미수채권(공시, 2023-11-06)
+SPIKE = (pd.Timestamp("2023-10-18"), pd.Timestamp("2023-10-24"))
+BREAK = pd.Timestamp("2023-10-25")
+START_OK = pd.Timestamp("2006-04-14")
+
+
+def forced_ratio_adjusted(funds: pd.DataFrame, cap_abs: float = 20.0, verbose: bool = False) -> pd.DataFrame:
+    """반대매매 비중을 '현재(체결금액 기준) 수준'으로 보정한 시계열.
+    1) 2006-04-14 이전: 미집계 -> NaN
+    2) 2023-10-19~24: (반대매매 금액 - 4,943억)/(미수금 - 4,943억)  (거래정지로 체결 못 된 키움 대상금액 제거), 10/18 은 앞뒤 값으로 보간
+    3) 2023-10-25~: 분모(미수금)에서 영풍제지 잔여 미수채권(4,943억→11/6 4,333억, 이후 유지)을 제거, 11/2~3 영풍제지 반대매매 체결분 급증은 정상 수준으로
+    4) 과거(대상금액 기준) 값에 k 를 곱해 체결금액 기준 수준으로 환산: k = 사건 후 6개월(11/7~) 중앙값 / 사건 전 6개월 중앙값
+    5) 상한 cap_abs(%): 복원 후에도 남을 수 있는 이상치용 안전장치. (기계적 분위 상한은 2026년 하락기의 실제 고점까지 깎아서 쓰지 않음)
+    반환 컬럼: raw(원자료 %), adj(보정 %), basis('target'|'filled'|'spike'), unpaid_adj(억원)"""
+    amt = funds["forced_amount"] / 100.0           # 억원/일
+    unp = funds["unpaid"] / 100.0                   # 억원
+    raw = funds["forced_ratio"].astype(float)
+    idx = funds.index
+    stuck = pd.Series(0.0, index=idx)
+    after = idx >= BREAK
+    days = (idx - BREAK).days.values
+    stuck[after] = np.where(idx[after] <= pd.Timestamp("2023-11-06"),
+                            STUCK_EOK_0 + (STUCK_EOK_1 - STUCK_EOK_0) * np.clip(days[after] / 12.0, 0, 1), STUCK_EOK_1)
+    unp_adj = unp.copy(); unp_adj[after] = (unp - stuck)[after]
+    ratio = raw.copy()
+    ratio[idx < START_OK] = np.nan
+    sp = (idx >= SPIKE[0]) & (idx <= SPIKE[1])
+    fix = (idx >= pd.Timestamp("2023-10-19")) & (idx <= SPIKE[1])
+    ratio[fix] = ((amt - STUCK_EOK_0) / (unp - STUCK_EOK_0) * 100)[fix]
+    ratio[idx == pd.Timestamp("2023-10-18")] = np.nan
+    ratio = ratio.interpolate(limit_area="inside")  # 10/18
+    amt_adj = amt.copy()   # 영풍제지 반대매매 체결분(키움 11/6 공시: 약 610억 회수) = 11/2~3 의 일시적 급증 -> 직전 정상 수준으로
+    base_amt = amt.loc["2023-10-25":"2023-11-01"].median()
+    for d_ in ("2023-11-02", "2023-11-03"):
+        if pd.Timestamp(d_) in amt_adj.index:
+            amt_adj.loc[d_] = base_amt
+    post = (amt_adj / unp_adj * 100).where(after)
+    pre_med = ratio.loc["2023-04-18":"2023-10-17"].median()
+    post_med = post.loc["2023-11-07":"2024-05-06"].median()
+    k = post_med / pre_med
+    adj = ratio.copy()
+    before = idx < BREAK
+    adj[before] = ratio[before] * k
+    adj[after] = post[after]
+    cap = float(cap_abs); adj = adj.clip(upper=cap)
+    basis = pd.Series(np.where(sp, "spike", np.where(after, "filled", "target")), index=idx)
+    out = pd.DataFrame({"raw": raw, "adj": adj, "basis": basis, "unpaid_adj": unp_adj})
+    out.attrs.update({"k": float(k), "pre_med": float(pre_med), "post_med": float(post_med), "cap": float(cap)})
+    if verbose:
+        print(f"환산계수 k = {k:.3f} (사건 전 6개월 중앙값 {pre_med:.2f}% → 사건 후 6개월 {post_med:.2f}%), 상한 {cap:.1f}%")
+    return out

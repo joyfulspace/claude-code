@@ -51,13 +51,11 @@ def build_specs(k, ser, funds):
     def pct_named(x):
         x = x.copy(); x.name = "__pct__"; return x
 
-    def forced_by_regime(w):
-        """반대매매 비중: 집계 기준이 바뀐 구간(~2006-04 미집계, 2023-10-18~24 중복집계, 2023-10-25~ 체결기준)을 따로 백분위화"""
-        fr = f["forced_ratio"]; out = pd.Series(np.nan, index=idx)
-        for a, b in (("2006-04-14", "2023-10-17"), ("2023-10-25", None)):
-            seg = fr.loc[a:b]
-            out.loc[seg.index] = P(seg.rolling(w).mean())
-        return pct_named(out)
+    forced_adj_series = data_mod.forced_ratio_adjusted(funds)["adj"].reindex(idx).ffill().shift(1)
+
+    def forced_adj(w):
+        """반대매매 비중(체결금액 기준으로 환산·복원한 보정 시계열)의 w일 평균 → 백분위"""
+        return forced_adj_series.rolling(w).mean()
 
     def credit_heat(w):
         """신용융자/예탁금이 높거나(수준) 최근 증가율이 과도하면(증가) 울림 = 두 백분위의 최대값(OR)"""
@@ -66,7 +64,7 @@ def build_specs(k, ser, funds):
     S = {
         ("수급", "신용융자/예탁금"): ("평활일수", [1, 5, 20, 60], 1, lambda w: ratio.rolling(w).mean()),
         ("수급", "예탁금 감소"): ("변화창", [20, 40, 60, 120], 60, lambda w: -f["deposit"].pct_change(w)),
-        ("수급", "반대매매 비중"): ("평균일수", [5, 20, 60, 120], 20, forced_by_regime),
+        ("수급", "반대매매 비중"): ("평균일수", [5, 20, 60, 120], 20, forced_adj),
         ("수급", "신용융자 증가"): ("변화창", [20, 40, 60, 120], 60, lambda w: f["margin"].pct_change(w)),
         ("수급", "원화 약세"): ("변화창", [20, 40, 60, 120], 60, lambda w: fx.pct_change(w)),
         ("시장민감도", "한미 상관"): ("창", [20, 40, 60, 120], 60, lambda w: ret.rolling(w).corr(us)),
