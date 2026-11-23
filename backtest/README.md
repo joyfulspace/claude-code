@@ -124,3 +124,7 @@ T1(200일선 이탈), T2(데드크로스), S(수급 단독), C1(이탈 AND 수�
 OR / AND(같은 날, 최근 W일) 조합, 한미 상관 창·상위% 탐색, 기간교차·구간별교차·가짜 한미 상관 우연 기준선. `results/pair_1~5_*.png`.
 
 (run_pair.py / explain_pair.py 는 B 지표 이름을 인자로 받음: `python3 backtest/run_pair.py "하락일 비중" && python3 backtest/explain_pair.py "하락일 비중"`)
+
+## 폭락 시점 신호 평가 (과적합 허용, crash_window.py / run_crash_timing.py)
+    python3 backtest/run_crash_timing.py 0.05 && python3 backtest/run_crash_timing.py 0.08 && python3 backtest/run_crash_timing.py 0.10 && python3 backtest/explain_crash_timing.py
+폭락 고점(종가 지그재그 15%) 전후 ±b% 구간 안에 신호가 있으면 적중. 지표별 (창, 상위%)를 F1(적중 비율·구간 안 신호 비율)로 최적화, 무작위 신호·가짜 지표 탐색을 우연 기준선으로. 기본 ±8%(±5% 는 중앙값 14거래일로 너무 좁음). `results/crash_1~5_*.png`.
