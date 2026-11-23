@@ -114,3 +114,7 @@ T1(200일선 이탈), T2(데드크로스), S(수급 단독), C1(이탈 AND 수�
 ## 예탁금 감소 지표 상세 (explain_deposit.py)
     python3 backtest/explain_deposit.py
 투자자예탁금 N(=20)거래일 감소율이 과거 분포 상위 5% 이내면 신호. 신호별 결과표(`results/deposit_signals.csv`), 개요·신호별 결과·파라미터 민감도·검증·최근 그림(`dep_1~5_*.png`).
+
+## 지표 상세 분석 범용 스크립트 (explain_indicator.py)
+    python3 backtest/explain_indicator.py "한미 상관"
+λ=0.1 최적 파라미터로 개요·신호별 결과·파라미터 민감도·검증·최근·백분위 구간별 일 단위 진단(`ind_<지표>_1~6_*.png`)과 신호표 CSV(`<지표>_signals.csv`) 생성.
