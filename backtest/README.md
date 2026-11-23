@@ -110,3 +110,7 @@ T1(200일선 이탈), T2(데드크로스), S(수급 단독), C1(이탈 AND 수�
 ## 4그룹(수급·시장민감도·심리·금리환율) '울린 그룹 수 ≥ g' 평가
     python3 backtest/run_combo.py && python3 backtest/explain_groups4.py
 그룹 하나가 '울렸다' = 그 그룹 지표 중 하나라도 최근 20거래일 안에 신호. 1~4그룹 이상 각각의 점수·우연 기준선·신호 시점·낙폭. `results/g4_1~6_*.png`.
+
+## 예탁금 감소 지표 상세 (explain_deposit.py)
+    python3 backtest/explain_deposit.py
+투자자예탁금 N(=20)거래일 감소율이 과거 분포 상위 5% 이내면 신호. 신호별 결과표(`results/deposit_signals.csv`), 개요·신호별 결과·파라미터 민감도·검증·최근 그림(`dep_1~5_*.png`).
