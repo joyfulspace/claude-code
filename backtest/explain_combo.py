@@ -69,30 +69,21 @@ def main():
     fig.suptitle("'동시에 보는 기간'을 바꿔도: 파란 선이 회색 띠를 확실히 넘는 곳이 거의 없음 (점 아래 숫자 = 신호 횟수)", fontsize=15, fontweight="bold")
     fig.tight_layout(); fig.savefig(OUT / "combo_2_창별.png", dpi=110); plt.close(fig)
 
-    # ---- 그림 3: 그룹 변형 + 교차검증
-    g = D["gdf"]; fig, ax = plt.subplots(1, 2, figsize=(17, 6.3))
-    lam_cols = [0.05, 0.1, 0.2, 0.5, 1.0]; Gn = len(g); xg = np.arange(Gn); wd = 0.16
-    for i, l in enumerate(lam_cols):
-        ax[0].bar(xg + (i - 2) * wd, g[f"점수λ={l}"], wd, label=f"λ={l}", color=plt.cm.Blues(0.3 + 0.14 * i))
-    ax[0].plot(xg, D["g95"][0.1], "k--", marker="_", ms=28, lw=0, mew=3, label="우연 95% (λ=0.1)")
-    ax[0].set_xticks(xg); ax[0].set_xticklabels([f"{i}그룹 이상\n(신호 {int(g.iloc[i - 1]['신호'])}번, 큰 하락 {int(g.iloc[i - 1]['큰하락중신호'])}/8)" for i in range(1, Gn + 1)])
-    ax[0].axhline(0, color="k", lw=0.8); ax[0].legend(fontsize=10.5, ncol=3, loc="lower center", bbox_to_anchor=(0.5, -0.32)); ax[0].grid(alpha=0.25, axis="y")
-    ax[0].set_title("울린 '그룹' 수 기준 (4그룹: 수급·시장민감도·심리·금리환율)")
+    # ---- 그림 3: 파라미터 교차검증 (지표 n개 이상)
+    fig, ax = plt.subplots(figsize=(11, 6.3))
     xs = np.arange(1, 9)
-    ax[1].plot(xs, D["opt"]["점수λ=0.1"].iloc[:8].astype(float), marker="^", lw=2, color=GRAY, ls=":", label="전체구간 최적 파라미터 (낙관적)")
-    ax[1].plot(xs, D["cv"][0.1][:8], marker="o", lw=2.8, color=GREEN, label="기간 교차검증 (훈련에서 고른 값 → 다른 기간)")
-    ax[1].plot(xs, D["loo"][0.1][:8], marker="s", lw=2.8, color=ORANGE, label="구간별 교차검증 (하락 1개 빼고 고른 값)")
-    ax[1].plot(xs, res[W0]["null95"][0.1][:8], "k--", lw=1.8, label="우연 95% 기준선")
-    ax[1].set_xlabel(f"n: 최근 {W0}거래일 안에 신호가 울린 지표 수가 n개 이상"); ax[1].set_ylabel("점수 (λ=0.1)"); ax[1].set_xticks(xs); ax[1].grid(alpha=0.25, axis="y"); ax[1].legend(fontsize=10.5)
-    ax[1].set_title("파라미터를 훈련 기간에서 고르면 점수가 조금 낮아지고 기준선에 못 미침")
-    fig.tight_layout(); fig.savefig(OUT / "combo_3_그룹과교차검증.png", dpi=110); plt.close(fig)
+    ax.plot(xs, D["opt"]["점수λ=0.1"].iloc[:8].astype(float), marker="^", lw=2, color=GRAY, ls=":", label="전체구간 최적 파라미터 (낙관적)")
+    ax.plot(xs, D["cv"][0.1][:8], marker="o", lw=2.8, color=GREEN, label="기간 교차검증 (훈련에서 고른 값 → 다른 기간)")
+    ax.plot(xs, D["loo"][0.1][:8], marker="s", lw=2.8, color=ORANGE, label="구간별 교차검증 (하락 1개 빼고 고른 값)")
+    ax.plot(xs, res[W0]["null95"][0.1][:8], "k--", lw=1.8, label="우연 95% 기준선")
+    ax.set_xlabel(f"n: 최근 {W0}거래일 안에 신호가 울린 지표 수가 n개 이상"); ax.set_ylabel("점수 (λ=0.1)"); ax.set_xticks(xs); ax.grid(alpha=0.25, axis="y"); ax.legend(fontsize=10.5)
+    ax.set_title("지표별 파라미터를 훈련 기간에서 고르면 점수가 낮아지고 기준선에 못 미침")
+    fig.tight_layout(); fig.savefig(OUT / "combo_3_교차검증.png", dpi=110); plt.close(fig)
 
     # ---- 그림 4: 큰 하락별 피한 손실
     rows, labs = [], []
     for n in (1, 2, 3, 4, 5, 6):
         rows.append(res[W0]["base"].loc[n, "B_j"]); labs.append(f"지표 {n}개 이상 (신호 {int(res[W0]['base'].loc[n, '신호'])}번)")
-    for gg in (2, 3, 4):
-        rows.append(g.loc[gg, "B_j"] if "B_j" in g.columns else np.zeros(len(D["ep"]))); labs.append(f"그룹 {gg}개 이상 (신호 {int(g.loc[gg, '신호'])}번)")
     M = np.array([np.asarray(r_, float) for r_ in rows])
     fig, ax = plt.subplots(figsize=(16, 5.8))
     ax.imshow(M, cmap="Greens", vmin=0, vmax=0.5, aspect="auto")
@@ -105,9 +96,9 @@ def main():
     for s_ in ax.spines.values(): s_.set_visible(False)
     fig.tight_layout(); fig.savefig(OUT / "combo_4_구간별.png", dpi=110); plt.close(fig)
 
-    # ---- 그림 5/6: 신호 시점 (조합 n=1,2,3,4,5 + 그룹≥2)
-    series = [(f"지표 {n}개 이상", res[W0]["cnt"] >= n) for n in (1, 2, 3, 4, 5)] + [(f"그룹 {gg}개 이상", D["ge"] >= gg) for gg in (2, 3, 4)]
-    colors = [BLUE] * 5 + [GREEN] * 3
+    # ---- 그림 5/6: 신호 시점 (조합 n=1,2,3,4,5)
+    series = [(f"지표 {n}개 이상", res[W0]["cnt"] >= n) for n in (1, 2, 3, 4, 5)] 
+    colors = [BLUE] * 5
 
     def draw(t0, t1, fname, title, linear):
         fig, axes = plt.subplots(2, 1, figsize=(19, 8.8), sharex=True, gridspec_kw={"height_ratios": [2.2, 3.2]}); a0, a1 = axes

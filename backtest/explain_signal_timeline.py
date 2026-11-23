@@ -19,7 +19,7 @@ from run_sell_lab import load_all  # noqa: E402
 warnings.simplefilter("ignore")
 OUT = Path(__file__).parent / "results"
 plt.rcParams.update({"font.size": 12, "axes.titlesize": 15, "axes.titleweight": "bold", "axes.spines.top": False, "axes.spines.right": False})
-GC = {"수급": "#2b8a3e", "시장민감도": "#1971c2", "심리": "#f08c00"}
+GC = {"수급": "#2b8a3e", "시장민감도": "#1971c2", "심리": "#f08c00", "금리·환율": "#9c36b5"}
 LAM = 0.1
 
 
@@ -49,7 +49,7 @@ def main():
         sigs[r["지표"]] = (ev, inw, cred)
 
     def draw(t0, t1, fname, title, linear):
-        fig, axes = plt.subplots(2, 1, figsize=(19, 12.5), sharex=True, gridspec_kw={"height_ratios": [2.3, 6]})
+        fig, axes = plt.subplots(2, 1, figsize=(19, 14), sharex=True, gridspec_kw={"height_ratios": [2.3, 6]})
         a0, a1 = axes
         m = (idx >= t0) & (idx <= t1)
         (a0.plot if linear else a0.semilogy)(idx[m], c[m], color="#1f3b73", lw=1.4)

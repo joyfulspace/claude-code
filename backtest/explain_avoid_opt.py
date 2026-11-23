@@ -19,7 +19,7 @@ from run_sell_lab import load_all  # noqa: E402
 warnings.simplefilter("ignore")
 OUT = Path(__file__).parent / "results"
 plt.rcParams.update({"font.size": 13, "axes.titlesize": 15, "axes.titleweight": "bold", "axes.spines.top": False, "axes.spines.right": False})
-GC = {"수급": "#2b8a3e", "시장민감도": "#1971c2", "심리": "#f08c00"}
+GC = {"수급": "#2b8a3e", "시장민감도": "#1971c2", "심리": "#f08c00", "금리·환율": "#9c36b5"}
 LAM = 0.1
 
 
