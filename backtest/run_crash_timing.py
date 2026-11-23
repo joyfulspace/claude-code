@@ -1,8 +1,9 @@
-"""폭락 시점 신호 평가(과적합 허용): 고점 전후 ±b% 구간 안에 신호가 있으면 적중.   python3 backtest/run_crash_timing.py [밴드(기본 0.08)]
+"""폭락 시점 신호 평가(과적합 허용): 고점 전후 ±b% 구간 안에 신호가 있으면 적중.   python3 backtest/run_crash_timing.py [밴드(기본 0.08)]   (CT_START=2001-01-02 로 시작일 변경)
 
 지표별로 (창, 상위 q%)를 격자 탐색해 F1(= 적중 구간 비율 R 과 구간 안 신호 비율 P 의 조화평균)을 최대화한다.
 우연 기준선: (1) 같은 신호 수를 무작위로 시간 이동했을 때 적중 수, (2) 가짜 지표(백분위 무작위 이동)로 같은 탐색을 했을 때 최고 F1.
 """
+import os
 import sys
 import warnings
 from pathlib import Path
@@ -20,8 +21,8 @@ warnings.simplefilter("ignore")
 OUT = Path(__file__).parent / "results"
 QG = [2, 3, 5, 7, 10, 15, 20, 25, 30, 40]
 COOL = 20
-START = pd.Timestamp("2006-01-02")
-BAND = float(sys.argv[1]) if len(sys.argv) > 1 else 0.08
+START = pd.Timestamp(os.environ.get("CT_START", "2006-01-02"))
+SUF = "" if START.year == 2006 else f"_{START.year}"
 
 
 def metrics(cond, wins, start_i, first_valid):
@@ -36,6 +37,7 @@ def metrics(cond, wins, start_i, first_valid):
 
 
 def main():
+    BAND = float(sys.argv[1]) if len(sys.argv) > 1 else 0.08
     pd.options.display.float_format = "{:.3f}".format; pd.options.display.width = 250
     k, ser, funds = load_all(); c = k["close"]; idx = k.index; n = len(c)
     start_i = int(idx.searchsorted(START))
@@ -80,7 +82,7 @@ def main():
     T = pd.DataFrame(rows).sort_values(["F1", "hit"], ascending=False).reset_index(drop=True); T.index += 1
     print("[지표별 최적(과적합 포함) — F1 순]")
     print(T[["그룹", "지표", "창", "상위%", "적중", "신호", "구간내신호", "재현율R", "정밀도P", "F1", "무작위 평균적중", "p(적중)", "탐색null F1 95%"]].to_string())
-    pd.to_pickle({"T": T, "best": best, "tops": tops, "wins": wins, "band": BAND}, OUT / f"crash_timing_{int(BAND * 100)}.pkl")
+    pd.to_pickle({"T": T, "best": best, "tops": tops, "wins": wins, "band": BAND}, OUT / f"crash_timing_{int(BAND * 100)}{SUF}.pkl")
 
 
 if __name__ == "__main__":
