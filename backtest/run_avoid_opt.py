@@ -24,6 +24,13 @@ SPLIT = pd.Timestamp("2013-01-01")
 NFAKE = 150
 
 
+def roll_win(arr, start_i, shift):
+    """평가 구간(start_i~끝) 안에서만 원형으로 밀기 (신호 수 보존)"""
+    out = np.asarray(arr).copy(); seg = out[start_i:]
+    out[start_i:] = np.roll(seg, int(shift) % len(seg))
+    return out
+
+
 class Ctx:
     def __init__(self, S):
         self.S = S
@@ -104,7 +111,7 @@ def main():
     keys = [(nm, info[nm][3]) for nm in grids]
     null = {lam: {"full": [], "cv": [], "loo": []} for lam in LAMS}
     for _ in range(NFAKE):
-        arrs = [np.roll(pct[keys[rng.integers(len(keys))]], int(rng.integers(500, n - 500))) for _ in range(4)]
+        arrs = [roll_win(pct[keys[rng.integers(len(keys))]], S.start_i, rng.integers(252, n - S.start_i - 252)) for _ in range(4)]
         g = [[S.detail(a >= 1 - q / 100) for q in Q] for a in arrs]
         for lam in LAMS:
             r = procedure(g, ctx, lam)

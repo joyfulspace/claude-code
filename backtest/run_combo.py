@@ -3,7 +3,7 @@
 점수 = 큰 하락 8번 평균 피한 손실 - λ × (모든 신호의 놓친 상승 합 / 큰 하락 수)   (avoid_score.py / run_avoid_opt.py 와 동일)
 조합: count_t = (조건이 참인 지표 수), 신호 = count >= n 이 새로 참이 되는 날(120일 간격).  변형: 최근 W일 안의 발동 지표 수, 울린 '그룹' 수.
 지표 파라미터: ① 기본값(창 기본, 상위20%)  ② 전체구간 최적(λ=0.1, 낙관적)  ③ 훈련구간에서 고른 값으로 검증구간 평가(교차) .
-우연 기준선: 조합 count 시계열을 통째로 무작위 시간 이동(400회) -> 같은 n 에서 우연히 나오는 점수.
+우연 기준선: 조합 count 시계열을 평가구간 안에서 무작위 원형 이동(400회, 신호 수 보존) -> 같은 n 에서 우연히 나오는 점수.
 """
 import sys
 import warnings
@@ -39,6 +39,13 @@ def count_events(ev_arr, W):
     return a.sum(axis=0)
 
 
+def roll_win(arr, start_i, shift):
+    """평가 구간(start_i~끝) 안에서만 원형으로 밀기: 신호가 구간 밖으로 사라지지 않게(신호 수 보존)"""
+    out = np.asarray(arr).copy(); seg = out[start_i:]
+    out[start_i:] = np.roll(seg, int(shift) % len(seg))
+    return out
+
+
 def eval_n(S, cnt, ns, ctx):
     rows = {}
     allE = np.ones(ctx.nE, bool)
@@ -67,7 +74,7 @@ def main():
     def null_for(cnt):
         nl = {l: np.zeros((NSH, len(ns))) for l in LAMS}; nsg = np.zeros((NSH, len(ns)))
         for t in range(NSH):
-            cr = np.roll(cnt, int(rng.integers(500, N - 500)))
+            cr = roll_win(cnt, S.start_i, rng.integers(252, N - S.start_i - 252))
             for j, n in enumerate(ns):
                 d = S.detail(cr >= n); nsg[t, j] = len(d["ev"])
                 for l in LAMS:
@@ -93,7 +100,7 @@ def main():
     gdf = eval_n(S, ge, [1, 2, 3], ctx)
     gn = {l: np.zeros((NSH, 3)) for l in LAMS}
     for t in range(NSH):
-        cr = np.roll(ge, int(rng.integers(500, N - 500)))
+        cr = roll_win(ge, S.start_i, rng.integers(252, N - S.start_i - 252))
         for j, g_ in enumerate((1, 2, 3)):
             d = S.detail(cr >= g_)
             for l in LAMS:
