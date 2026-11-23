@@ -22,6 +22,9 @@ THR = 70  # 그룹 확인 임계(상위 30%), 사전 고정
 def load_all():
     k = pd.read_csv(data.DATA_DIR / "KOSPI_ohlcv.csv", index_col=0, parse_dates=True)
     ser = {n: data.load_series(n) for n in ("VIX", "SPX", "USDKRW", "TNX", "KOSDAQ")}
+    for n in ("KR10Y", "KR3M"):
+        if (data.DATA_DIR / f"{n}.csv").exists():
+            ser[n] = data.load_series(n)
     funds = pd.read_csv(data.DATA_DIR / "KOFIA_funds.csv", index_col=0, parse_dates=True)
     return k, ser, funds
 

@@ -93,3 +93,10 @@ T1(200일선 이탈), T2(데드크로스), S(수급 단독), C1(이탈 AND 수�
     python3 backtest/explain_raw_series.py
 예탁금·신용융자·신용융자/예탁금·반대매매 비중·원/달러·S&P500·미국 10년 금리·VIX·코스닥/코스피를 KOSPI와 함께 표시. `results/raw_1~3_*.png`.
 주의: 반대매매 비중은 2006-04 이전 ≈0, 2023-10-19 69% 급등, 2023-12 에 수준이 ~9%→~0.6% 로 이동(집계 기준 변경 의심).
+
+## 지표 추가(2026-11): 신용융자 과열, 한국 금리, 한미 금리차, 환율·금리 결합 + 반대매매 비중 구간 보정
+    python3 -c "import sys;sys.path.insert(0,'backtest');import data;[data.fetch_fred(n) for n in ('KR10Y','KR3M','KRBASE')]"
+    python3 backtest/build_pct_cache.py && python3 backtest/run_avoid_opt.py
+- 한국 금리는 FRED 월별(IRLTLT01KRM156N 등). M월 값은 M+2월 1일부터 사용(발표 지연 반영). 일별 한국 금리 원천은 미확보.
+- 반대매매 비중: 2006-04 이전(미집계), 2023-10-18~24(거래정지 중복집계), 2023-10-25~(체결금액 기준)을 구간별로 따로 백분위화.
+- 그림: `explain_forced.py`(원인), `explain_new_indicators.py`(새 지표 원본·신호).

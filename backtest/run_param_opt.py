@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent))
+import data as data_mod  # noqa: E402
 import risk_exit as rx  # noqa: E402
 from run_sell_lab import load_all  # noqa: E402
 
@@ -44,10 +45,28 @@ def build_specs(k, ser, funds):
     def beta(m, w):
         return (ret * us).where(m).rolling(w, min_periods=30).mean() / (us ** 2).where(m).rolling(w, min_periods=30).mean()
     ratio = f["margin"] / f["deposit"]
+    kr10 = data_mod.monthly_to_daily(ser["KR10Y"], idx) if "KR10Y" in ser else None
+    kr3 = data_mod.monthly_to_daily(ser["KR3M"], idx) if "KR3M" in ser else None
+
+    def pct_named(x):
+        x = x.copy(); x.name = "__pct__"; return x
+
+    def forced_by_regime(w):
+        """반대매매 비중: 집계 기준이 바뀐 구간(~2006-04 미집계, 2023-10-18~24 중복집계, 2023-10-25~ 체결기준)을 따로 백분위화"""
+        fr = f["forced_ratio"]; out = pd.Series(np.nan, index=idx)
+        for a, b in (("2006-04-14", "2023-10-17"), ("2023-10-25", None)):
+            seg = fr.loc[a:b]
+            out.loc[seg.index] = P(seg.rolling(w).mean())
+        return pct_named(out)
+
+    def credit_heat(w):
+        """신용융자/예탁금이 높거나(수준) 최근 증가율이 과도하면(증가) 울림 = 두 백분위의 최대값(OR)"""
+        lvl = P(ratio.rolling(5).mean()); gr = P(ratio.pct_change(w))
+        return pct_named(pd.concat([lvl, gr], axis=1).max(axis=1, skipna=False))
     S = {
         ("수급", "신용융자/예탁금"): ("평활일수", [1, 5, 20, 60], 1, lambda w: ratio.rolling(w).mean()),
         ("수급", "예탁금 감소"): ("변화창", [20, 40, 60, 120], 60, lambda w: -f["deposit"].pct_change(w)),
-        ("수급", "반대매매 비중"): ("평균일수", [5, 20, 60, 120], 20, lambda w: f["forced_ratio"].rolling(w).mean()),
+        ("수급", "반대매매 비중"): ("평균일수", [5, 20, 60, 120], 20, forced_by_regime),
         ("수급", "신용융자 증가"): ("변화창", [20, 40, 60, 120], 60, lambda w: f["margin"].pct_change(w)),
         ("수급", "원화 약세"): ("변화창", [20, 40, 60, 120], 60, lambda w: fx.pct_change(w)),
         ("시장민감도", "한미 상관"): ("창", [20, 40, 60, 120], 60, lambda w: ret.rolling(w).corr(us)),
@@ -62,7 +81,31 @@ def build_specs(k, ser, funds):
         ("심리", "하락일 비중"): ("창", [10, 20, 40, 60], 20, lambda w: (ret < 0).astype(float).rolling(w).mean()),
         ("심리", "RSI"): ("RSI기간", [7, 14, 28], 14, lambda w: rx.rsi(c, w)),
     }
+    S[("수급", "신용융자 과열(수준 또는 증가)")] = ("증가창", [20, 40, 60, 120], 60, credit_heat)
+    if kr10 is not None:
+        spread = kr10 - tnx
+        S[("금리·환율", "한국 금리 상승")] = ("변화창(거래일)", [63, 126, 252], 126, lambda w: kr10 - kr10.shift(w))
+        S[("금리·환율", "한미 금리차 축소")] = ("변화창(거래일)", [63, 126, 252], 126, lambda w: -(spread - spread.shift(w)))
+        S[("금리·환율", "환율·금리 결합(달러 총수익)")] = ("변화창(거래일)", [20, 60, 120], 60, lambda w: fx.pct_change(w) + (tnx - kr10) / 100 * w / 252)
     return S
+
+
+def pct_of(fn, w):
+    s = fn(w)
+    return s.values if getattr(s, "name", None) == "__pct__" else P(s).values
+
+
+def ensure_cache(specs, cache_path):
+    """백분위 캐시 갱신: 바뀐 지표(반대매매 비중)는 다시 계산하고 새 지표를 추가."""
+    pct = pd.read_pickle(cache_path) if Path(cache_path).exists() else {}
+    for key in [k_ for k_ in pct if k_[0] in ("반대매매 비중",)]:
+        del pct[key]
+    for (g, nm), (pn, wins, dflt, fn) in specs.items():
+        for w in wins:
+            if (nm, w) not in pct:
+                pct[(nm, w)] = pct_of(fn, w)
+    pd.to_pickle(pct, cache_path)
+    return pct
 
 
 class Sim:
@@ -122,11 +165,7 @@ def main():
     S = build_specs(k, ser, funds)
     cache = OUT / "param_opt_pct.pkl"
     pct = pd.read_pickle(cache) if cache.exists() else {}
-    for (g, nm), (pn, wins, dflt, fn) in S.items():
-        for w in wins:
-            if (nm, w) not in pct:
-                pct[(nm, w)] = P(fn(w)).values
-    pd.to_pickle(pct, cache)
+    pct = ensure_cache(S, cache)
     dd = sim.dd
 
     # 기준 유효율(prior): 기본 규칙 -8%

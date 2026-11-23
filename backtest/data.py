@@ -164,7 +164,31 @@ def fetch_kofia_funds(start: str = "2000-01-01", end: str | None = None) -> pd.D
     a = _kofia("STATSCU0100000060BO", start, end)
     b = _kofia("STATSCU0100000070BO", start, end)
     df = pd.DataFrame({"deposit": a["TMPV2"], "margin": b["TMPV2"], "unpaid": a["TMPV5"],
-                       "forced_ratio": a["TMPV7"]}).astype(float)
+                       "forced_amount": a["TMPV6"], "forced_ratio": a["TMPV7"]}).astype(float)
     DATA_DIR.mkdir(exist_ok=True)
     df.rename_axis("date").to_csv(DATA_DIR / "KOFIA_funds.csv")
     return df
+
+
+FRED_IDS = {"KR10Y": "IRLTLT01KRM156N", "KR3M": "IR3TIB01KRM156N", "KRBASE": "INTDSRKRM193N"}
+
+
+def fetch_fred(name: str) -> pd.Series:
+    """FRED 공개 CSV(월별) -> data/{name}.csv (date, close). 한국 10년 국채금리/3개월 은행간금리/재할인율."""
+    import io
+
+    import requests
+
+    r = requests.get("https://fred.stlouisfed.org/graph/fredgraph.csv", params={"id": FRED_IDS[name]}, timeout=60)
+    r.raise_for_status()
+    df = pd.read_csv(io.StringIO(r.text))
+    s = pd.Series(pd.to_numeric(df.iloc[:, 1], errors="coerce").values, index=pd.to_datetime(df.iloc[:, 0]), name="close").dropna()
+    DATA_DIR.mkdir(exist_ok=True)
+    s.rename_axis("date").to_csv(DATA_DIR / f"{name}.csv")
+    return s
+
+
+def monthly_to_daily(monthly: pd.Series, daily_index: pd.DatetimeIndex, lag_months: int = 2) -> pd.Series:
+    """월별 값(월초 날짜)을 '발표 지연'을 반영해 일별로 확장: M월 값은 M+lag_months 월 1일부터 사용(미래 정보 방지)."""
+    s = monthly.copy(); s.index = s.index + pd.DateOffset(months=lag_months)
+    return s.reindex(s.index.union(daily_index)).ffill().reindex(daily_index)
