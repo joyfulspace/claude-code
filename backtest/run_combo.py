@@ -20,7 +20,7 @@ from run_sell_lab import load_all  # noqa: E402
 
 warnings.simplefilter("ignore")
 OUT = Path(__file__).parent / "results"
-NMAX = 16
+NMAX = 20
 NSH = 400
 
 
@@ -95,19 +95,24 @@ def main():
     print("[창 W 민감도] 점수(λ=0.1) / 우연95% / 신호 수")
     tab = pd.DataFrame({f"W={W} 점수": res[W]["base"]["점수λ=0.1"] for W in (5, 20, 60)} | {f"W={W} 신호": res[W]["base"]["신호"] for W in (5, 20, 60)} | {f"W={W} 우연95%": res[W]["null95"][0.1] for W in (5, 20, 60)})
     print(tab.head(12).to_string(), "\n")
-    # 그룹 변형: 그룹 안에서 W일 내 신호가 울린 지표가 하나라도 있으면 그룹 발동
-    ge = np.stack([np.max(np.stack([np.asarray(pd.DataFrame(EV[[names.index(nm)]].T).rolling(W0, min_periods=1).max().values.T)[0] for nm in names if group[nm] == g]), axis=0) for g in ("수급", "시장민감도", "심리")]).sum(axis=0)
-    gdf = eval_n(S, ge, [1, 2, 3], ctx)
-    gn = {l: np.zeros((NSH, 3)) for l in LAMS}
+    # 그룹 변형: 그룹 안에서 W일 내 신호가 울린 지표가 하나라도 있으면 그룹 발동 (그룹 수는 지표 정의에서 자동: 수급/시장민감도/심리/금리·환율)
+    groups = list(dict.fromkeys(group[nm] for nm in names)); G = len(groups)
+    win_ev = {nm: pd.DataFrame(EV[[names.index(nm)]].T).rolling(W0, min_periods=1).max().values.T[0] for nm in names}
+    ge = np.stack([np.max(np.stack([win_ev[nm] for nm in names if group[nm] == g_]), axis=0) for g_ in groups]).sum(axis=0)
+    gs = list(range(1, G + 1))
+    gdf = eval_n(S, ge, gs, ctx)
+    gn = {l: np.zeros((NSH, G)) for l in LAMS}
     for t in range(NSH):
         cr = roll_win(ge, S.start_i, rng.integers(252, N - S.start_i - 252))
-        for j, g_ in enumerate((1, 2, 3)):
+        for j, g_ in enumerate(gs):
             d = S.detail(cr >= g_)
             for l in LAMS:
                 gn[l][t, j] = sc(d, allE, np.ones(len(d["m"]), bool), l)
     g95 = {l: np.percentile(gn[l], 95, axis=0) for l in LAMS}
     gdf["우연95%(λ=0.1)"] = g95[0.1]
-    print("[변형] 울린 '그룹' 수 ≥ g (수급/시장민감도/심리, 최근 20일)"); print(gdf[["신호", "큰하락중신호", "피한손실", "총기회비용"] + [f"점수λ={l}" for l in LAMS] + ["우연95%(λ=0.1)"]].to_string(), "\n")
+    print(f"[변형] 울린 '그룹' 수 ≥ g  (그룹 {G}개: {', '.join(f'{g_}({sum(group[n_] == g_ for n_ in names)}개 지표)' for g_ in groups)}; 최근 {W0}거래일)")
+    print(gdf[["신호", "큰하락중신호", "피한손실", "총기회비용"] + [f"점수λ={l}" for l in LAMS] + ["우연95%(λ=0.1)"]].to_string(), "\n")
+    print("[그룹 g 이상: 점수 - 우연95%]"); print(pd.DataFrame({l: gdf[f"점수λ={l}"].astype(float).values - g95[l] for l in LAMS}, index=gs).round(3).to_string(), "\n")
 
     # ② 전체구간 최적(낙관적)
     T = R[R["λ"] == LAM0].set_index("지표")
@@ -139,7 +144,7 @@ def main():
     cvt = pd.DataFrame({"②전체최적 신호": opt["신호"], "②전체최적 점수(낙관)": opt["점수λ=0.1"], "③기간교차 점수": cv[0.1], "③구간별교차 점수": loo[0.1],
                         "①기본값 점수": base["점수λ=0.1"], "①우연95%": n95[0.1]}, index=ns)
     print("[② 전체최적(낙관적) vs ③ 교차검증] 최근 20일 기준, 점수 λ=0.1"); print(cvt.head(12).to_string(), "\n")
-    pd.to_pickle({"res": res, "ns": ns, "cv": cv, "loo": loo, "opt": opt, "gdf": gdf, "g95": g95, "ge": ge, "M": M, "names": names, "ep": [(str(e[2].date()), e[3]) for e in S.ep], "W0": W0}, OUT / "combo_results.pkl")
+    pd.to_pickle({"res": res, "ns": ns, "cv": cv, "loo": loo, "opt": opt, "gdf": gdf, "g95": g95, "ge": ge, "groups": groups, "M": M, "names": names, "ep": [(str(e[2].date()), e[3]) for e in S.ep], "W0": W0}, OUT / "combo_results.pkl")
 
 
 if __name__ == "__main__":

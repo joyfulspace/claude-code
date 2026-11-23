@@ -71,13 +71,13 @@ def main():
 
     # ---- 그림 3: 그룹 변형 + 교차검증
     g = D["gdf"]; fig, ax = plt.subplots(1, 2, figsize=(17, 6.3))
-    lam_cols = [0.05, 0.1, 0.2, 0.5, 1.0]; xg = np.arange(3); wd = 0.16
+    lam_cols = [0.05, 0.1, 0.2, 0.5, 1.0]; Gn = len(g); xg = np.arange(Gn); wd = 0.16
     for i, l in enumerate(lam_cols):
         ax[0].bar(xg + (i - 2) * wd, g[f"점수λ={l}"], wd, label=f"λ={l}", color=plt.cm.Blues(0.3 + 0.14 * i))
     ax[0].plot(xg, D["g95"][0.1], "k--", marker="_", ms=28, lw=0, mew=3, label="우연 95% (λ=0.1)")
-    ax[0].set_xticks(xg); ax[0].set_xticklabels([f"{i}그룹 이상\n(신호 {int(g.iloc[i - 1]['신호'])}번, 큰 하락 {int(g.iloc[i - 1]['큰하락중신호'])}/8)" for i in (1, 2, 3)])
+    ax[0].set_xticks(xg); ax[0].set_xticklabels([f"{i}그룹 이상\n(신호 {int(g.iloc[i - 1]['신호'])}번, 큰 하락 {int(g.iloc[i - 1]['큰하락중신호'])}/8)" for i in range(1, Gn + 1)])
     ax[0].axhline(0, color="k", lw=0.8); ax[0].legend(fontsize=10.5, ncol=3, loc="lower center", bbox_to_anchor=(0.5, -0.32)); ax[0].grid(alpha=0.25, axis="y")
-    ax[0].set_title("울린 '그룹'(수급·시장민감도·심리) 수 기준: 2그룹 이상이 가장 좋음")
+    ax[0].set_title("울린 '그룹' 수 기준 (4그룹: 수급·시장민감도·심리·금리환율)")
     xs = np.arange(1, 9)
     ax[1].plot(xs, D["opt"]["점수λ=0.1"].iloc[:8].astype(float), marker="^", lw=2, color=GRAY, ls=":", label="전체구간 최적 파라미터 (낙관적)")
     ax[1].plot(xs, D["cv"][0.1][:8], marker="o", lw=2.8, color=GREEN, label="기간 교차검증 (훈련에서 고른 값 → 다른 기간)")
@@ -91,7 +91,7 @@ def main():
     rows, labs = [], []
     for n in (1, 2, 3, 4, 5, 6):
         rows.append(res[W0]["base"].loc[n, "B_j"]); labs.append(f"지표 {n}개 이상 (신호 {int(res[W0]['base'].loc[n, '신호'])}번)")
-    for gg in (2,):
+    for gg in (2, 3, 4):
         rows.append(g.loc[gg, "B_j"] if "B_j" in g.columns else np.zeros(len(D["ep"]))); labs.append(f"그룹 {gg}개 이상 (신호 {int(g.loc[gg, '신호'])}번)")
     M = np.array([np.asarray(r_, float) for r_ in rows])
     fig, ax = plt.subplots(figsize=(16, 5.8))
@@ -106,8 +106,8 @@ def main():
     fig.tight_layout(); fig.savefig(OUT / "combo_4_구간별.png", dpi=110); plt.close(fig)
 
     # ---- 그림 5/6: 신호 시점 (조합 n=1,2,3,4,5 + 그룹≥2)
-    series = [(f"지표 {n}개 이상", res[W0]["cnt"] >= n) for n in (1, 2, 3, 4, 5)] + [("그룹 2개 이상(수급·민감도·심리)", D["ge"] >= 2)]
-    colors = [BLUE, BLUE, BLUE, BLUE, BLUE, GREEN]
+    series = [(f"지표 {n}개 이상", res[W0]["cnt"] >= n) for n in (1, 2, 3, 4, 5)] + [(f"그룹 {gg}개 이상", D["ge"] >= gg) for gg in (2, 3, 4)]
+    colors = [BLUE] * 5 + [GREEN] * 3
 
     def draw(t0, t1, fname, title, linear):
         fig, axes = plt.subplots(2, 1, figsize=(19, 8.8), sharex=True, gridspec_kw={"height_ratios": [2.2, 3.2]}); a0, a1 = axes
