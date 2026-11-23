@@ -122,3 +122,5 @@ T1(200일선 이탈), T2(데드크로스), S(수급 단독), C1(이탈 AND 수�
 ## 예탁금 감소 + 한미 상관 조합 / 한미 상관 파라미터 탐색 (예탁금 감소 고정)
     python3 backtest/run_pair.py && python3 backtest/explain_pair.py
 OR / AND(같은 날, 최근 W일) 조합, 한미 상관 창·상위% 탐색, 기간교차·구간별교차·가짜 한미 상관 우연 기준선. `results/pair_1~5_*.png`.
+
+(run_pair.py / explain_pair.py 는 B 지표 이름을 인자로 받음: `python3 backtest/run_pair.py "하락일 비중" && python3 backtest/explain_pair.py "하락일 비중"`)
