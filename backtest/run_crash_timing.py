@@ -22,7 +22,8 @@ OUT = Path(__file__).parent / "results"
 QG = [2, 3, 5, 7, 10, 15, 20, 25, 30, 40]
 COOL = 20
 START = pd.Timestamp(os.environ.get("CT_START", "2006-01-02"))
-SUF = "" if START.year == 2006 else f"_{START.year}"
+DEV = float(os.environ.get("CT_DEV", "0.15"))   # 폭락 고점 기준: 이후 DEV 이상 하락 (사용자 정의: 0.20)
+SUF = ("" if START.year == 2006 else f"_{START.year}") + ("" if abs(DEV - 0.15) < 1e-9 else f"_d{int(round(DEV * 100))}")
 
 
 def metrics(cond, wins, start_i, first_valid):
@@ -41,11 +42,12 @@ def main():
     pd.options.display.float_format = "{:.3f}".format; pd.options.display.width = 250
     k, ser, funds = load_all(); c = k["close"]; idx = k.index; n = len(c)
     start_i = int(idx.searchsorted(START))
-    tops = [t for t in cw.zigzag_tops(c, 0.15) if t >= start_i]
+    _t, _b, _d = cw.crash_tops(c, DEV, 0.15)
+    keep = [i for i, t in enumerate(_t) if t >= start_i]; tops = [_t[i] for i in keep]; troughs = [_b[i] for i in keep]; drops = [_d[i] for i in keep]
     wins = cw.make_windows(c, tops, BAND)
     specs = build_specs(k, ser, funds); pct = pd.read_pickle(OUT / "param_opt_pct.pkl")
     rng = np.random.default_rng(0)
-    print(f"폭락 고점 {len(tops)}개 | 밴드 ±{BAND:.0%} | 구간 길이 중앙값 {np.median([e - s for s, t, e in wins]):.0f}거래일 | 신호 간격 {COOL}거래일\n")
+    print(f"폭락 고점(이후 -{DEV:.0%} 이상 하락) {len(tops)}개 | 밴드 ±{BAND:.0%} | 구간 길이 중앙값 {np.median([e - s for s, t, e in wins]):.0f}거래일 | 신호 간격 {COOL}거래일\n")
     rows, best = [], {}
     for (grp, nm), (pn, wl, dflt, fn) in specs.items():
         wl = [w for w in wl if np.isfinite(pct[(nm, w)]).any()]
@@ -82,7 +84,7 @@ def main():
     T = pd.DataFrame(rows).sort_values(["F1", "hit"], ascending=False).reset_index(drop=True); T.index += 1
     print("[지표별 최적(과적합 포함) — F1 순]")
     print(T[["그룹", "지표", "창", "상위%", "적중", "신호", "구간내신호", "재현율R", "정밀도P", "F1", "무작위 평균적중", "p(적중)", "탐색null F1 95%"]].to_string())
-    pd.to_pickle({"T": T, "best": best, "tops": tops, "wins": wins, "band": BAND}, OUT / f"crash_timing_{int(BAND * 100)}{SUF}.pkl")
+    pd.to_pickle({"T": T, "best": best, "tops": tops, "troughs": troughs, "drops": drops, "wins": wins, "band": BAND}, OUT / f"crash_timing_{int(BAND * 100)}{SUF}.pkl")
 
 
 if __name__ == "__main__":

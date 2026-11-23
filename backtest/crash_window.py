@@ -59,3 +59,30 @@ def score_events(ev, windows):
         else:
             first.append(None)
     return hit, int(inwin.sum()), first
+
+
+def crash_tops(close: pd.Series, min_drop: float = 0.20, pivot_dev: float = 0.15):
+    """폭락 고점: 종가 지그재그(pivot_dev 반전)로 찾은 고점 중, 그 하락 구간의 저점까지 min_drop 이상 빠진 것.
+    반환: (고점 인덱스 리스트, 저점 인덱스 리스트, 낙폭 리스트)"""
+    c = close.values; n = len(c)
+    tops, bots = [], []
+    mode = 0; ext_i = 0
+    for i in range(1, n):
+        if mode == 0:
+            if c[i] >= c[ext_i] * (1 + pivot_dev): mode = 1; ext_i = i
+            elif c[i] <= c[ext_i] * (1 - pivot_dev): mode = -1; ext_i = i
+            continue
+        if mode == 1:
+            if c[i] > c[ext_i]: ext_i = i
+            elif c[i] <= c[ext_i] * (1 - pivot_dev): tops.append(ext_i); mode = -1; ext_i = i
+        else:
+            if c[i] < c[ext_i]: ext_i = i
+            elif c[i] >= c[ext_i] * (1 + pivot_dev):
+                bots.append(ext_i); mode = 1; ext_i = i
+    if mode == -1: bots.append(ext_i)
+    pairs = []
+    for t in tops:
+        b = next((x for x in bots if x > t), None)
+        if b is not None and t > 0 and c[b] / c[t] - 1 <= -min_drop + 1e-12:
+            pairs.append((t, b, c[b] / c[t] - 1))
+    return [p[0] for p in pairs], [p[1] for p in pairs], [p[2] for p in pairs]
